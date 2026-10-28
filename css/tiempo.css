@@ -1,0 +1,410 @@
+/* ===== Viaje en el tiempo (línea de tiempo + historieta) ===== */
+.tiempo-hero {
+  padding: 38px clamp(24px, 4.3vw, 70px);
+  color: #fff;
+  background: var(--navy);
+}
+.tiempo-hero h1 {
+  margin: 0;
+  font: 800 clamp(40px, 6vw, 76px)/0.82 var(--sans);
+  letter-spacing: -0.09em;
+}
+.tiempo-hero h1 em {
+  color: var(--acid);
+  font-style: normal;
+}
+.tiempo-hero-texto {
+  max-width: 520px;
+  margin: 18px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 16px;
+}
+.tiempo-zona {
+  padding: 40px clamp(24px, 4.3vw, 70px) 90px;
+  background: var(--paper);
+}
+.tiempo-zona [hidden] {
+  display: none !important;
+}
+.tiempo-aviso {
+  max-width: 760px;
+  margin-bottom: 20px;
+  padding: 14px 18px;
+  color: #fff;
+  background: var(--coral);
+  font: 600 12px var(--mono);
+}
+.btn-tiempo {
+  padding: 14px 20px;
+  color: #fff;
+  background: var(--ink);
+  border: 0;
+  cursor: pointer;
+  font: 600 11px var(--mono);
+  text-transform: uppercase;
+}
+.btn-tiempo:hover {
+  background: var(--coral);
+}
+.btn-tiempo.acid {
+  color: var(--ink);
+  background: var(--acid);
+}
+.btn-tiempo.acid:hover {
+  background: var(--blue);
+  color: #fff;
+}
+.btn-tiempo:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.btn-tiempo:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 22px;
+}
+.chip {
+  padding: 10px 14px;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  cursor: pointer;
+  font: 600 11px var(--mono);
+  text-transform: uppercase;
+}
+.chip:hover {
+  background: var(--cyan);
+}
+.chip[aria-pressed="true"] {
+  color: #fff;
+  background: var(--blue);
+  border-color: var(--blue);
+}
+.chip:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+
+.evento {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  max-width: 900px;
+  border: 2px solid var(--ink);
+  background: #fff;
+}
+.evento-escena {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 220px;
+  padding: 20px;
+  color: #fff;
+  text-align: center;
+  background: linear-gradient(160deg, var(--c1, #12348f), var(--c2, #46b6ff));
+}
+.evento-icono {
+  font-size: 84px;
+  line-height: 1;
+  animation: rebote 0.5s ease;
+}
+.evento-hace {
+  margin: 0;
+  font: 700 14px/1.3 var(--mono);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.evento-texto {
+  padding: 28px;
+}
+.evento-texto h2 {
+  margin: 12px 0 12px;
+  font-size: clamp(30px, 4vw, 46px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+.evento-texto > p:last-child {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.55;
+}
+@keyframes rebote {
+  0% {
+    transform: scale(0.6) rotate(-8deg);
+    opacity: 0.3;
+  }
+  70% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.maquina {
+  max-width: 900px;
+  margin: 30px 0;
+}
+.maquina-titulo {
+  display: block;
+  margin-bottom: 10px;
+  font: 700 13px var(--mono);
+  text-transform: uppercase;
+}
+.maquina input[type="range"] {
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+.maquina input[type="range"]:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 4px;
+}
+.marcas {
+  display: flex;
+  justify-content: space-between;
+  margin: 2px 4px 0;
+  padding: 0;
+  list-style: none;
+}
+.marcas button {
+  width: 44px;
+  height: 44px;
+  font-size: 24px;
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  cursor: pointer;
+}
+.marcas button:hover {
+  border-color: var(--blue);
+}
+.marcas button[aria-current="true"] {
+  background: var(--acid);
+  border-color: var(--ink);
+}
+.maquina-botones {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.historieta {
+  max-width: 900px;
+  margin-bottom: 34px;
+}
+.comic {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin: 12px 0 18px;
+}
+.panel {
+  position: relative;
+  margin: 0;
+  background: #fff;
+  border: 3px solid var(--ink);
+  box-shadow: 5px 5px 0 var(--ink);
+}
+.panel.nueva {
+  animation: pop 0.35s ease;
+}
+@keyframes pop {
+  from {
+    transform: scale(0.88);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+.panel-escena {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 3/2;
+  border-bottom: 3px solid var(--ink);
+}
+.panel-escena .item {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  line-height: 1;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+}
+.panel-num {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  left: 0;
+  padding: 3px 9px;
+  color: var(--ink);
+  background: var(--acid);
+  border-right: 3px solid var(--ink);
+  border-bottom: 3px solid var(--ink);
+  font: 800 14px var(--mono);
+}
+.globo {
+  position: relative;
+  margin: 14px;
+  padding: 12px 14px;
+  background: #fffdf2;
+  border: 3px solid var(--ink);
+  border-radius: 16px;
+  font: 600 15px/1.4 var(--sans);
+}
+.globo::before {
+  content: "";
+  position: absolute;
+  top: -14px;
+  left: 26px;
+  width: 18px;
+  height: 18px;
+  background: #fffdf2;
+  border-top: 3px solid var(--ink);
+  border-left: 3px solid var(--ink);
+  transform: rotate(45deg);
+}
+
+.reloj {
+  max-width: 900px;
+  margin-bottom: 30px;
+}
+.reloj-barra {
+  position: relative;
+  height: 30px;
+  margin-top: 10px;
+  border: 2px solid var(--ink);
+  background: linear-gradient(
+    90deg,
+    #050816,
+    #2155f5 25%,
+    #f6c96b 50%,
+    #2155f5 75%,
+    #050816
+  );
+}
+.reloj-barra i {
+  position: absolute;
+  top: -8px;
+  width: 8px;
+  height: 44px;
+  margin-left: -4px;
+  background: var(--coral);
+  border: 2px solid var(--ink);
+  transition: left 0.5s ease;
+}
+.reloj-horas {
+  display: flex;
+  justify-content: space-between;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+  font: 500 10px var(--mono);
+}
+.reloj-texto {
+  margin: 14px 0 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+.reloj-texto b {
+  font-family: var(--mono);
+}
+
+.reto {
+  max-width: 900px;
+  padding: 24px;
+  background: var(--cyan);
+  border: 2px solid var(--ink);
+}
+.reto h3 {
+  margin: 10px 0 14px;
+  font-size: 24px;
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+.reto-opciones {
+  display: grid;
+  gap: 10px;
+  max-width: 560px;
+}
+.reto-opcion {
+  padding: 14px 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  cursor: pointer;
+  font: 600 16px var(--sans);
+  text-align: left;
+}
+.reto-opcion:hover:not(:disabled) {
+  background: var(--acid);
+}
+.reto-opcion:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.reto-opcion.ok {
+  background: var(--acid);
+}
+.reto-opcion.mal {
+  background: #ffd8d0;
+  border-color: var(--coral);
+}
+.reto-opcion:disabled {
+  cursor: default;
+}
+.reto-msg {
+  min-height: 24px;
+  margin: 10px 0 0;
+  font: 600 13px var(--mono);
+}
+
+@media (max-width: 680px) {
+  .tiempo-hero {
+    padding: 30px 15px;
+  }
+  .tiempo-zona {
+    padding: 25px 15px 80px;
+  }
+  .evento {
+    grid-template-columns: 1fr;
+  }
+  .evento-escena {
+    min-height: 170px;
+  }
+  .evento-icono {
+    font-size: 64px;
+  }
+  .evento-texto {
+    padding: 20px;
+  }
+  .marcas button {
+    width: 36px;
+    height: 36px;
+    font-size: 19px;
+  }
+  .maquina-botones {
+    flex-direction: column;
+  }
+  .comic {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .evento-icono,
+  .panel.nueva {
+    animation: none;
+  }
+  .reloj-barra i {
+    transition: none;
+  }
+}

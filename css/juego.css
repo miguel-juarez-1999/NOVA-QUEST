@@ -1,0 +1,471 @@
+/* ===== Cadetes NovaQuest (juego) ===== */
+.juego-hero {
+  padding: 38px clamp(24px, 4.3vw, 70px);
+  color: #fff;
+  background: var(--navy);
+}
+.juego-hero[hidden] {
+  display: none;
+}
+.juego-hero h1 {
+  margin: 0;
+  font: 800 clamp(40px, 6vw, 76px)/0.82 var(--sans);
+  letter-spacing: -0.09em;
+}
+.juego-hero h1 em {
+  color: var(--acid);
+  font-style: normal;
+}
+.juego-hero-texto {
+  max-width: 520px;
+  margin: 18px 0 0;
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 16px;
+}
+.juego-zona {
+  min-height: 60vh;
+  padding: 40px clamp(24px, 4.3vw, 70px) 90px;
+  background: var(--paper);
+}
+.juego-zona [hidden] {
+  display: none !important;
+}
+.juego-aviso {
+  max-width: 760px;
+  margin-bottom: 25px;
+  padding: 14px 18px;
+  color: #fff;
+  background: var(--coral);
+  font: 600 12px var(--mono);
+}
+.juego-aviso.ok {
+  background: #25b879;
+}
+.juego-panel {
+  max-width: 760px;
+}
+.juego-panel h2,
+.juego-titulo {
+  margin: 15px 0 25px;
+  font-size: clamp(32px, 4.4vw, 54px);
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+.juego-form label,
+.juego-form legend {
+  display: block;
+  margin: 20px 0 6px;
+  font: 600 10px var(--mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.juego-form input[type="text"] {
+  width: 100%;
+  padding: 14px 16px;
+  color: var(--ink);
+  background: #fff;
+  border: 2px solid var(--ink);
+  font: 500 20px var(--sans);
+}
+.juego-form input[type="text"]:focus {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.avatares {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.avatares legend {
+  width: 100%;
+}
+.avatares label {
+  margin: 0;
+}
+.avatares input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.avatares span {
+  display: grid;
+  place-items: center;
+  width: 70px;
+  height: 70px;
+  font-size: 36px;
+  background: #fff;
+  border: 2px solid var(--line);
+  cursor: pointer;
+}
+.avatares input:checked + span {
+  background: var(--cyan);
+  border-color: var(--blue);
+}
+.avatares input:focus-visible + span {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.btn-juego {
+  margin: 25px 12px 0 0;
+  padding: 16px 24px;
+  color: #fff;
+  background: var(--ink);
+  border: 0;
+  cursor: pointer;
+  font: 600 12px var(--mono);
+  text-transform: uppercase;
+}
+.btn-juego:hover {
+  background: var(--coral);
+}
+.btn-juego.acid {
+  color: var(--ink);
+  background: var(--acid);
+}
+.btn-juego.acid:hover {
+  background: var(--blue);
+  color: #fff;
+}
+.btn-juego:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: 2px;
+}
+.juego-salir {
+  padding: 8px 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  font: 600 9px var(--mono);
+  text-transform: uppercase;
+}
+.juego-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 20px;
+}
+.mision-card {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border: 1px solid var(--ink);
+}
+.mision-card img {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+.mision-card div {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 20px;
+}
+.mision-card small {
+  font: 500 8px var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.mision-card h3 {
+  margin: 6px 0 8px;
+  font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.mision-card p {
+  flex: 1;
+  margin: 0 0 15px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.mision-card .estado {
+  align-self: flex-start;
+  margin-bottom: 12px;
+  padding: 4px 8px;
+  background: var(--cyan);
+  font: 600 9px var(--mono);
+  text-transform: uppercase;
+}
+.mision-card .estado.hecha {
+  background: var(--acid);
+}
+.mision-card button {
+  padding: 12px;
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  font: 600 10px var(--mono);
+  text-transform: uppercase;
+}
+.mision-card button:hover {
+  color: #fff;
+  background: var(--coral);
+  border-color: var(--coral);
+}
+.lectura [data-lectura-texto] {
+  font-size: clamp(19px, 2.2vw, 24px);
+  line-height: 1.6;
+}
+
+/* Pantalla del juego de naves */
+/* La arena ocupa todo el ancho (respetando el margen de la página) y el alto de
+   la ventana; el motor adapta el mundo del juego a ese tamaño. Nunca más ancha
+   que 2.4 veces su altura para que no se vea estirada. */
+.arena-panel {
+  --alto-arena: clamp(420px, calc(100dvh - 230px), 900px);
+  max-width: none;
+}
+.hud {
+  margin-bottom: 12px;
+}
+.hud-fila {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.hud-vidas {
+  font-size: 22px;
+  letter-spacing: 2px;
+}
+.hud-pts {
+  font: 600 13px var(--mono);
+}
+.hud-pts b {
+  font-size: 20px;
+}
+.hud-botones {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.hud-btn {
+  padding: 8px 10px;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--ink);
+  cursor: pointer;
+  font: 600 10px var(--mono);
+  text-transform: uppercase;
+}
+.hud-btn:hover {
+  background: var(--acid);
+}
+.hud-texto {
+  margin: 6px 0 0 !important;
+  font-size: clamp(20px, 2.6vw, 28px) !important;
+  line-height: 1.1 !important;
+  letter-spacing: -0.04em !important;
+}
+.arena {
+  position: relative;
+  width: min(100%, calc(var(--alto-arena) * 2.4));
+  height: var(--alto-arena);
+  background: #050816;
+  border: 2px solid var(--ink);
+}
+.arena canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: crosshair;
+}
+.arena-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 24px;
+  text-align: center;
+  color: #fff;
+  background: rgba(5, 8, 22, 0.82);
+}
+.arena-overlay[hidden] {
+  display: none;
+}
+.arena-overlay h3 {
+  margin: 0 0 10px;
+  font-size: clamp(26px, 5vw, 36px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: var(--acid);
+}
+.arena-overlay p {
+  max-width: 340px;
+  margin: 0;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 15px;
+}
+.arena-overlay .btn-juego {
+  margin: 18px 6px 0;
+}
+.arena-ayuda {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font: 500 10px var(--mono);
+}
+.juego-dialogo {
+  max-width: 560px;
+  padding: 35px;
+  color: var(--ink);
+  background: var(--acid);
+  border: 0;
+  box-shadow: 0 30px 80px rgba(5, 9, 22, 0.3);
+}
+.juego-dialogo::backdrop {
+  background: rgba(9, 13, 28, 0.75);
+}
+.juego-dialogo h2 {
+  margin: 15px 0;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.juego-dialogo p:not(.section-code) {
+  font-size: 18px;
+  line-height: 1.55;
+}
+
+.final-puntos {
+  font-size: 22px;
+}
+.final-puntos strong {
+  font: 700 64px/1 var(--mono);
+  letter-spacing: -0.08em;
+}
+.insignia {
+  display: inline-block;
+  margin: 0 8px 8px 0;
+  padding: 10px 14px;
+  background: var(--acid);
+  border: 1px solid var(--ink);
+  font: 600 12px var(--mono);
+}
+.ranking-titulo {
+  margin: 35px 0 10px;
+  font-size: 22px;
+  letter-spacing: -0.04em;
+}
+.ranking {
+  max-width: 420px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ranking li {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 17px;
+}
+.ranking li.yo {
+  background: var(--cyan);
+  padding-right: 8px;
+  padding-left: 8px;
+  font-weight: 700;
+}
+@media (max-width: 680px) {
+  .mobile-dock.tres {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .juego-hero {
+    padding: 30px 15px;
+  }
+  .juego-zona {
+    padding: 25px 15px 80px;
+  }
+  .avatares span {
+    width: 58px;
+    height: 58px;
+    font-size: 30px;
+  }
+  .status-bar > div {
+    gap: 8px;
+  }
+  .arena-panel {
+    --alto-arena: clamp(380px, calc(100dvh - 250px), 900px);
+  }
+}
+
+/* Datos curiosos y resultado con estrellas */
+.arena-dato {
+  position: absolute;
+  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  left: 10px;
+  margin: 0;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: rgba(216, 243, 74, 0.96);
+  border: 2px solid var(--ink);
+  font: 600 13px/1.35 var(--sans);
+  pointer-events: none;
+}
+.arena-dato[hidden] {
+  display: none;
+}
+.arena-dato.sale {
+  animation: dato-sube 0.35s ease;
+}
+@keyframes dato-sube {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.final-estrellas {
+  margin: 10px 0 0;
+  font-size: 56px;
+  letter-spacing: 6px;
+  line-height: 1;
+}
+.final-detalle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font: 600 12px var(--mono);
+}
+@media (prefers-reduced-motion: reduce) {
+  .arena-dato.sale {
+    animation: none;
+  }
+}
+
+/* Pantalla grande del juego (pantalla completa o panel que cubre la ventana) */
+.arena-panel.completa {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  --alto-arena: calc(100dvh - 150px);
+  padding: 10px 16px;
+  overflow: auto;
+  color: #fff;
+  background: #050816;
+}
+.arena-panel.completa .hud {
+  width: min(100%, calc(var(--alto-arena) * 2.4));
+}
+.arena-panel.completa .hud-texto {
+  font-size: clamp(17px, 2.2vw, 24px) !important;
+}
+.arena-panel.completa .arena {
+  border-color: #fff;
+}
+.arena-panel.completa .arena-ayuda {
+  display: none;
+}

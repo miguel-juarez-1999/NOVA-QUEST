@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Viaje en el tiempo: la historia de la Tierra en etapas, con historietas interactivas."
+    />
+    <title>Viaje en el tiempo | NovaQuest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/tiempo.css" />
+    <script src="js/api.js" defer></script>
+    <script src="js/tiempo.js" defer></script>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#111a3a" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  </head>
+  <body>
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <div class="app-shell">
+      <aside class="side-rail" aria-label="Navegación principal">
+        <a class="rail-logo" href="index.html" aria-label="NovaQuest, inicio"
+          ><span>N</span><span>Q</span></a
+        >
+        <nav class="rail-nav">
+          <a href="index.html"><span>01</span><strong>Inicio</strong></a>
+          <a href="misiones.html"><span>02</span><strong>Misiones</strong></a>
+          <a href="juego.html"><span>03</span><strong>Jugar</strong></a>
+          <a class="active" href="linea-tiempo.html"
+            ><span>04</span><strong>Historia</strong></a
+          >
+        </nav>
+        <div class="rail-foot">
+          <span class="live-dot"></span><small>Sistema<br />en línea</small>
+        </div>
+      </aside>
+      <main id="contenido" class="workspace">
+        <header class="status-bar">
+          <p><span>NovaQuest</span> / Viaje en el tiempo</p>
+          <div>
+            <span class="status-pill"><i></i> 4,600 millones de años</span>
+          </div>
+        </header>
+
+        <section class="tiempo-hero">
+          <p class="kicker">Historia de la Tierra / Beta 01</p>
+          <h1>VIAJE EN<br /><em>EL TIEMPO</em></h1>
+          <p class="tiempo-hero-texto">
+            Arrastra la máquina del tiempo y descubre cómo nació nuestro
+            planeta.
+          </p>
+        </section>
+
+        <section class="tiempo-zona">
+          <div
+            class="tiempo-aviso"
+            data-aviso
+            role="status"
+            aria-live="polite"
+            hidden
+          ></div>
+
+          <div
+            class="chips"
+            data-chips
+            aria-label="Etapas de la historia de la Tierra"
+          ></div>
+
+          <article class="evento" data-evento aria-live="polite">
+            <div class="evento-escena" data-escena>
+              <span class="evento-icono" data-icono aria-hidden="true"></span>
+              <p class="evento-hace" data-hace></p>
+            </div>
+            <div class="evento-texto">
+              <p class="section-code" data-etapa></p>
+              <h2 data-titulo></h2>
+              <p data-texto></p>
+            </div>
+          </article>
+
+          <div class="maquina">
+            <label for="maquina" class="maquina-titulo"
+              >⏳ Máquina del tiempo</label
+            >
+            <input
+              type="range"
+              id="maquina"
+              min="0"
+              max="0"
+              step="1"
+              value="0"
+              data-slider
+            />
+            <ol class="marcas" data-marcas></ol>
+            <div class="maquina-botones">
+              <button class="btn-tiempo" type="button" data-antes>
+                ← Más antiguo
+              </button>
+              <button class="btn-tiempo acid" type="button" data-despues>
+                Más reciente →
+              </button>
+            </div>
+          </div>
+
+          <section class="historieta" data-historieta hidden>
+            <p class="section-code">HISTORIETA</p>
+            <div class="comic" data-comic></div>
+            <button class="btn-tiempo acid" type="button" data-siguiente>
+              Siguiente viñeta →
+            </button>
+          </section>
+
+          <section class="reloj" aria-label="La Tierra en 24 horas">
+            <p class="section-code">LA TIERRA EN 24 HORAS</p>
+            <div class="reloj-barra"><i data-reloj-marca></i></div>
+            <ol class="reloj-horas" aria-hidden="true">
+              <li>00:00</li>
+              <li>06:00</li>
+              <li>12:00</li>
+              <li>18:00</li>
+              <li>24:00</li>
+            </ol>
+            <p class="reloj-texto" data-reloj-texto></p>
+          </section>
+
+          <section class="reto" data-reto hidden>
+            <p class="section-code" data-reto-etapa>RETO</p>
+            <div data-reto-lista></div>
+          </section>
+        </section>
+
+        <footer class="site-footer">
+          <p>NovaQuest / Proyecto académico</p>
+          <p>Miguel Juárez Condado · 2311080460</p>
+          <p>UTP · 2026</p>
+        </footer>
+      </main>
+    </div>
+    <nav class="mobile-dock" aria-label="Navegación móvil">
+      <a href="index.html"><span>⌂</span>Inicio</a>
+      <a href="misiones.html"><span>◎</span>Misiones</a>
+      <a href="juego.html"><span>▶</span>Jugar</a>
+      <a class="active" href="linea-tiempo.html"><span>⏳</span>Historia</a>
+    </nav>
+  </body>
+</html>

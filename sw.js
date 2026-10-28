@@ -22,7 +22,7 @@
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v1";
+const CACHE_VERSION = "novaquest-v9";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -32,6 +32,8 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // dominio y se manejan con otra estrategia.
 // Resultado: "novaquest-v1-fonts"
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
+// Caché para las respuestas de la API (datos del backend)
+const API_CACHE = `${CACHE_VERSION}-api`;
 
 
 // ---------------------------------------------------------------------
@@ -47,10 +49,32 @@ const PRECACHE_URLS = [
   "./",
   "./index.html",
   "./misiones.html",
+  "./juego.html",
+  "./linea-tiempo.html",
 
   // Estilos y lógica
   "./css/styles.css",
+  "./css/juego.css",
+  "./css/tiempo.css",
   "./js/app.js",
+  "./js/api.js",
+  "./js/juego.js",
+  "./js/nave.js",
+  "./js/tiempo.js",
+  "./js/vendor/phaser.min.js",
+
+  // Gráficos del videojuego
+  "./assets/juego/fondo.jpg",
+  "./assets/juego/estrellas1.png",
+  "./assets/juego/estrellas2.png",
+  "./assets/juego/asteroide_fondo_blur.png",
+  "./assets/juego/bala.png",
+  "./assets/juego/brillo.png",
+  "./assets/juego/fuego.png",
+  "./assets/juego/luz.png",
+  "./assets/juego/nave.png",
+  "./assets/juego/capsula.png",
+  "./assets/juego/tierra.png",
 
   // Configuración de la PWA
   "./manifest.json",
@@ -88,6 +112,10 @@ self.addEventListener("install", (event) => {
       // Descarga y guarda TODOS los archivos de PRECACHE_URLS
       // (si uno falla, falla todo: es "todo o nada")
       .then((cache) => cache.addAll(PRECACHE_URLS))
+      // Guarda también los datos públicos de la API (misiones y línea de
+      // tiempo) para poder leerlos sin internet. Si el servidor no responde
+      // no pasa nada: la instalación sigue.
+      .then(() => precachearApi().catch(() => {}))
       // Activa esta versión de inmediato, sin esperar a que se cierren
       // las pestañas que usan la versión anterior
       .then(() => self.skipWaiting())
@@ -103,7 +131,7 @@ self.addEventListener("install", (event) => {
 // Borra los cachés de versiones anteriores para no acumular basura.
 self.addEventListener("activate", (event) => {
   // Cachés vigentes: estos NO se deben borrar
-  const cachesPermitidos = [STATIC_CACHE, FONTS_CACHE];
+  const cachesPermitidos = [STATIC_CACHE, FONTS_CACHE, API_CACHE];
 
   event.waitUntil(
     caches
@@ -150,6 +178,24 @@ self.addEventListener("fetch", (event) => {
   // pide el video por pedacitos). El caché no maneja bien eso, así que se
   // deja pasar a la red.
   if (url.pathname.endsWith(".mp4") || request.headers.has("range")) return;
+
+  // --- Caso API: datos del backend (PHP + MySQL) ---
+  // RED PRIMERO: los datos deben ser frescos. Si no hay internet,
+  // se entrega la última respuesta guardada.
+  if (url.origin === self.location.origin && url.pathname.includes("/api/")) {
+    event.respondWith(
+      fetch(request)
+        .then((respuesta) => {
+          if (respuesta.ok) {
+            const copia = respuesta.clone();
+            caches.open(API_CACHE).then((cache) => cache.put(request, copia));
+          }
+          return respuesta;
+        })
+        .catch(() => caches.match(request).then((enCache) => enCache || Response.error()))
+    );
+    return;
+  }
 
   // --- Caso A: Fuentes de Google ---
   // Estrategia stale-while-revalidate: responde al instante con lo que
@@ -214,7 +260,29 @@ self.addEventListener("fetch", (event) => {
 
 
 // ---------------------------------------------------------------------
-// 6. FUNCIÓN AUXILIAR: staleWhileRevalidate
+// 6. FUNCIÓN AUXILIAR: precachearApi
+// ---------------------------------------------------------------------
+
+// Descarga la lista de misiones, el detalle de cada una (lectura y
+// preguntas, SIN la respuesta correcta) y la línea de tiempo, y las guarda
+// en el caché de la API. Son rutas públicas: no necesitan token.
+async function precachearApi() {
+  const cache = await caches.open(API_CACHE);
+  const guardar = async (url) => {
+    const respuesta = await fetch(url);
+    if (respuesta.ok) await cache.put(url, respuesta.clone());
+    return respuesta;
+  };
+  const misiones = await (await guardar("./api/index.php?r=misiones")).json();
+  await Promise.all([
+    guardar("./api/index.php?r=linea_tiempo"),
+    ...misiones.map((m) => guardar(`./api/index.php?r=mision&codigo=${encodeURIComponent(m.codigo)}`))
+  ]);
+}
+
+
+// ---------------------------------------------------------------------
+// 7. FUNCIÓN AUXILIAR: staleWhileRevalidate
 // ---------------------------------------------------------------------
 
 // Devuelve lo que hay en caché y, a la vez, actualiza el caché desde la red.

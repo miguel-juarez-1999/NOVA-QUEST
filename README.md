@@ -46,5 +46,3 @@ El proyecto puede convertirse posteriormente en PWA incorporando manifiesto, ico
 
 Las fotografías provienen de la biblioteca de imágenes de NASA. El video `viaje-orbital.mp4` corresponde a la visualización **Great Zoom into Orlando, FL: Epcot Spaceship Earth**, publicada por NASA Goddard Space Flight Center / Scientific Visualization Studio.
 
-Autor: Miguel Juárez Condado - Matrícula 2311080460.
-# NOVA-QUEST
