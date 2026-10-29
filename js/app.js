@@ -45,3 +45,26 @@ document.querySelector("[data-selector]")?.addEventListener("submit", (event) =>
   const shortMode = form.elements.time.value === "breve" ? " / MODO BREVE DISPONIBLE" : "";
   form.querySelector("output").textContent = recommendations[form.elements.interest.value] + shortMode;
 });
+
+// PWA COMPARTIDA / APORTACIÓN KEVIN:
+// Conserva el evento de instalación para mostrar un botón propio cuando
+// Chrome/Edge determine que la PWA cumple los requisitos de instalación.
+let deferredInstallPrompt = null;
+
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  document.querySelectorAll("[data-install-app]").forEach((button) => {
+    button.hidden = false;
+  });
+});
+
+document.querySelectorAll("[data-install-app]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    await deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    button.hidden = true;
+  });
+});

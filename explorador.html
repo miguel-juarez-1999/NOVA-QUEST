@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="NQ Orbit Explorer: explorador educativo de objetos cercanos a la Tierra con datos abiertos de NASA."
+    />
+    <title>NQ Orbit Explorer | NovaQuest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+    <link rel="stylesheet" href="css/explorer.css" />
+    <script src="js/api.js" defer></script>
+    <script src="js/app.js" defer></script>
+    <script src="js/nasa-explorer.js" defer></script>
+
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#111a3a" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  </head>
+  <body class="explorer-page">
+    <a class="skip-link" href="#contenido">Saltar al contenido</a>
+    <div class="app-shell">
+      <aside class="side-rail" aria-label="Navegación principal">
+        <a class="rail-logo" href="index.html" aria-label="NovaQuest, inicio"
+          ><span>N</span><span>Q</span></a
+        >
+        <nav class="rail-nav">
+          <a href="index.html"><span>01</span><strong>Inicio</strong></a>
+          <a href="misiones.html"><span>02</span><strong>Misiones</strong></a>
+          <a class="active" href="explorador.html"
+            ><span>03</span><strong>Órbita</strong></a
+          >
+          <a href="#datos"><span>04</span><strong>Datos</strong></a>
+        </nav>
+        <div class="rail-foot">
+          <span class="live-dot"></span><small>NASA API<br />beta</small>
+        </div>
+      </aside>
+
+      <!-- APORTACIÓN KEVIN: módulo NQ Orbit Explorer. -->
+      <main id="contenido" class="workspace explorer-workspace">
+        <header class="status-bar">
+          <p><span>NovaQuest</span> / NQ Orbit Explorer</p>
+          <div>
+            <span class="status-pill" data-api-status
+              ><i></i> Preparando datos</span
+            ><time data-update-time>Sincronizando</time>
+          </div>
+        </header>
+
+        <section class="orbit-intro">
+          <div>
+            <p class="section-code inverse">APORTACIÓN KEVIN / BETA 01</p>
+            <h1>El espacio se entiende<br /><em>cuando lo exploras.</em></h1>
+          </div>
+          <div class="orbit-intro-copy">
+            <p>
+              Gira el planeta, selecciona un marcador y conoce objetos cercanos
+              a la Tierra mediante datos abiertos de NASA.
+            </p>
+            <p class="scale-warning">
+              Representación educativa. Las órbitas y distancias no están a
+              escala y no predicen impactos.
+            </p>
+          </div>
+        </section>
+
+        <section class="orbit-lab" aria-labelledby="orbit-title">
+          <div class="orbit-stage">
+            <div class="stage-heading">
+              <div>
+                <p class="section-code">VISUALIZADOR / NASA NEOWS</p>
+                <h2 id="orbit-title">Objetos próximos</h2>
+              </div>
+              <div class="stage-controls" aria-label="Controles del globo">
+                <button type="button" data-zoom-out aria-label="Alejar">−</button>
+                <button type="button" data-reset-view>Restablecer</button>
+                <button type="button" data-zoom-in aria-label="Acercar">+</button>
+              </div>
+            </div>
+
+            <div class="canvas-shell" data-canvas-shell>
+              <canvas
+                data-orbit-canvas
+                width="900"
+                height="680"
+                aria-label="Globo terrestre interactivo con marcadores de asteroides"
+              ></canvas>
+              <div class="canvas-help">
+                <span>Arrastra para girar</span><span>Rueda para acercar</span>
+              </div>
+            </div>
+          </div>
+
+          <aside class="object-detail" aria-live="polite">
+            <p class="section-code">OBJETO SELECCIONADO</p>
+            <span class="object-sequence" data-object-sequence>NQ—NEO 01</span>
+            <h2 data-object-name>Cargando objeto…</h2>
+            <p class="object-summary" data-object-summary>
+              Consultando información científica.
+            </p>
+            <dl class="object-metrics">
+              <div>
+                <dt>Velocidad relativa</dt>
+                <dd data-object-speed>—</dd>
+              </div>
+              <div>
+                <dt>Distancia de paso</dt>
+                <dd data-object-distance>—</dd>
+              </div>
+              <div>
+                <dt>Diámetro estimado</dt>
+                <dd data-object-diameter>—</dd>
+              </div>
+              <div>
+                <dt>Fecha de aproximación</dt>
+                <dd data-object-date>—</dd>
+              </div>
+            </dl>
+            <div class="hazard-note" data-hazard-note>
+              La clasificación de NASA se explicará aquí sin generar alarma.
+            </div>
+            <a data-jpl-link href="https://ssd.jpl.nasa.gov/" target="_blank" rel="noreferrer"
+              >Consultar ficha científica ↗</a
+            >
+          </aside>
+        </section>
+
+        <section id="datos" class="data-console">
+          <div class="data-heading">
+            <div>
+              <p class="section-code inverse">DATOS / ÚLTIMA CONSULTA</p>
+              <h2>Archivo de aproximaciones</h2>
+            </div>
+            <div class="data-actions">
+              <button type="button" data-refresh-data>Actualizar NASA</button>
+              <button type="button" data-notify>Activar aviso de prueba</button>
+              <button type="button" data-install-app hidden>Instalar NovaQuest</button>
+            </div>
+          </div>
+          <p class="data-message" data-data-message>
+            Preparando la primera consulta a NASA NeoWs.
+          </p>
+          <div class="object-list" data-object-list aria-label="Objetos obtenidos desde NASA"></div>
+        </section>
+
+        <section class="education-notes">
+          <article>
+            <span>01</span>
+            <h2>Dato científico</h2>
+            <p>
+              Nombre, velocidad, diámetro y distancia provienen de la respuesta
+              JSON de NASA NeoWs.
+            </p>
+          </article>
+          <article>
+            <span>02</span>
+            <h2>Representación</h2>
+            <p>
+              La posición del marcador facilita la exploración, pero no es una
+              órbita astronómica a escala.
+            </p>
+          </article>
+          <article>
+            <span>03</span>
+            <h2>Experiencia PWA</h2>
+            <p>
+              El Service Worker conserva la interfaz y una respuesta reciente
+              para poder explicar el uso de caché.
+            </p>
+          </article>
+        </section>
+
+        <footer class="site-footer explorer-footer">
+          <p>NovaQuest / Proyecto colaborativo</p>
+          <p>Módulo NASA: Kevin Salas Jimarez · 2311080876</p>
+          <p>NASA Open APIs · Beta 2026</p>
+        </footer>
+      </main>
+    </div>
+
+    <nav class="mobile-dock explorer-dock" aria-label="Navegación móvil">
+      <a href="index.html"><span>⌂</span>Inicio</a>
+      <a href="misiones.html"><span>◎</span>Misiones</a>
+      <a class="active" href="explorador.html"><span>◉</span>Órbita</a>
+      <a href="#datos"><span>≋</span>Datos</a>
+    </nav>
+  </body>
+</html>

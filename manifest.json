@@ -48,6 +48,19 @@
           "type": "image/png"
         }
       ]
+    },
+    {
+      "name": "NQ Orbit Explorer",
+      "short_name": "Órbita NASA",
+      "description": "Explorar objetos cercanos a la Tierra con datos abiertos de NASA",
+      "url": "./explorador.html",
+      "icons": [
+        {
+          "src": "assets/icons/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
     }
   ]
 }
