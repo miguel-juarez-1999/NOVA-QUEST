@@ -11,9 +11,10 @@
     <link rel="stylesheet" href="css/styles.css" />
     <link rel="stylesheet" href="css/juego.css" />
     <script src="js/api.js" defer></script>
+    <script src="js/juego/avisos.js" defer></script>
     <script src="js/vendor/phaser.min.js" defer></script>
-    <script src="js/nave.js" defer></script>
-    <script src="js/juego.js" defer></script>
+    <script src="js/juego/nave.js" defer></script>
+    <script src="js/juego/juego.js" defer></script>
     <link rel="manifest" href="manifest.json" />
     <meta name="theme-color" content="#111a3a" />
     <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
@@ -73,6 +74,17 @@
             <p class="section-code">02 / MISIONES</p>
             <h2 class="juego-titulo">Elige tu misión</h2>
             <div class="juego-grid" data-lista-misiones></div>
+
+            <section class="avisos-juego" data-avisos-juego aria-labelledby="avisos-juego-titulo">
+              <p class="section-code">AVISOS DEL JUEGO</p>
+              <h3 id="avisos-juego-titulo">🔔 ¿Te avisamos cuando te rebasen en el ranking?</h3>
+              <p class="avisos-juego-texto">También te recordamos las misiones que dejes a medias, aunque tengas la página cerrada.</p>
+              <p class="avisos-juego-adulto">👨‍👩‍👧 Pídele permiso a un adulto antes de activar los avisos.</p>
+              <button class="btn-juego acid" type="button" data-avisos-juego-activar>🔔 Activar avisos</button>
+              <button class="btn-juego" type="button" data-avisos-juego-probar hidden>📨 Probar aviso</button>
+              <button class="btn-juego" type="button" data-avisos-juego-desactivar hidden>🔕 Desactivar</button>
+              <p class="avisos-juego-estado" data-avisos-juego-estado role="status" aria-live="polite"></p>
+            </section>
           </section>
 
           <section id="pantalla-lectura" class="juego-panel lectura" hidden>

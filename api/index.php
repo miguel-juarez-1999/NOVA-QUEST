@@ -14,6 +14,10 @@
 //   POST r=push_suscribir              {endpoint, keys:{p256dh, auth}} (X-Token opcional)
 //   POST r=push_baja                   {endpoint}
 //   POST r=push_prueba                 {endpoint} -> envía un aviso a ese navegador
+//   POST r=juego_avisos_estado         {endpoint} -> ¿este navegador tiene avisos del juego? (X-Token)
+//   POST r=juego_avisos_suscribir      {endpoint, keys:{p256dh, auth}} (X-Token)
+//   POST r=juego_avisos_baja           {endpoint} (X-Token)
+//   POST r=juego_avisos_prueba         {endpoint} -> envía un aviso del juego (X-Token)
 // =====================================================================
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
@@ -176,6 +180,16 @@ try {
                 }
             }
             $pdo->commit();
+            // Avisos del juego: si rebasó a alguien de su grupo, se le avisa.
+            // Un fallo aquí nunca debe romper la respuesta del disparo.
+            if ($suma > 0 && $tabla === 'progreso') {
+                try {
+                    require_once __DIR__ . '/juego/avisos.php';
+                    pushJuegoRanking($pdo, $u, $suma);
+                } catch (Throwable $e) {
+                    error_log('NovaQuest push juego: ' . $e->getMessage());
+                }
+            }
             salida(200, ['correcta' => (bool)$o['es_correcta'], 'puntos_ganados' => $suma,
                          'completada' => $completada, 'insignias_nuevas' => $insignias,
                          // El dato curioso solo se revela al acertar (no delata la respuesta)
@@ -315,6 +329,60 @@ try {
             }
             if ($codigo < 200 || $codigo >= 300) salida(502, ['error' => 'El servicio de avisos no respondió (código ' . $codigo . ')']);
             db()->prepare('UPDATE push_suscripciones SET ultimo_envio = NOW() WHERE id = ?')->execute([$sub['id']]);
+            salida(200, ['ok' => true]);
+
+        // ----- Avisos del videojuego (tabla push_juego, ver api/juego/avisos.php) -----
+        case 'juego_avisos_estado':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            $st = db()->prepare('SELECT 1 FROM push_juego WHERE endpoint_hash = ? AND usuario_id = ?');
+            $st->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? '')), $u['id']]);
+            salida(200, ['activo' => (bool)$st->fetch()]);
+
+        case 'juego_avisos_suscribir':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            require_once __DIR__ . '/juego/avisos.php';
+            $u = usuarioActual();
+            $b = cuerpo();
+            $endpoint = (string)($b['endpoint'] ?? '');
+            $p256dh   = (string)($b['keys']['p256dh'] ?? '');
+            $auth     = (string)($b['keys']['auth'] ?? '');
+            if (!pushJuegoEndpointValido($endpoint)
+                || !preg_match('/^[A-Za-z0-9_-]{80,100}$/', $p256dh)
+                || !preg_match('/^[A-Za-z0-9_-]{16,30}$/', $auth)) salida(422, ['error' => 'Suscripción inválida']);
+            // Si el navegador ya era de otro cadete, ahora es del que tiene la sesión
+            db()->prepare('INSERT INTO push_juego (usuario_id, endpoint_hash, endpoint, p256dh, auth) VALUES (?,?,?,?,?)
+                           ON DUPLICATE KEY UPDATE usuario_id = VALUES(usuario_id), p256dh = VALUES(p256dh), auth = VALUES(auth)')
+                ->execute([$u['id'], hash('sha256', $endpoint), $endpoint, $p256dh, $auth]);
+            salida(201, ['ok' => true]);
+
+        case 'juego_avisos_baja':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            db()->prepare('DELETE FROM push_juego WHERE endpoint_hash = ? AND usuario_id = ?')
+                ->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? '')), $u['id']]);
+            salida(200, ['ok' => true]);
+
+        case 'juego_avisos_prueba':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            require_once __DIR__ . '/juego/avisos.php';
+            $u = usuarioActual();
+            $st = db()->prepare('SELECT id, endpoint, p256dh, auth, TIMESTAMPDIFF(SECOND, ultimo_envio, NOW()) AS hace
+                                 FROM push_juego WHERE endpoint_hash = ? AND usuario_id = ?');
+            $st->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? '')), $u['id']]);
+            $sub = $st->fetch() ?: salida(404, ['error' => 'Primero activa los avisos del juego']);
+            if ($sub['hace'] !== null && (int)$sub['hace'] < 20) {
+                salida(429, ['error' => 'Espera unos segundos antes de pedir otro aviso']);
+            }
+            // Si tiene una misión a medias se le recuerda; si no, un aviso de bienvenida
+            $aviso = pushJuegoRecordatorio(db(), (int)$u['id']) ?? [
+                'titulo' => '🎮 ¡Hola, ' . $u['apodo'] . '!',
+                'cuerpo' => 'Así te avisaremos cuando alguien te rebase en el ranking o dejes una misión a medias.',
+                'url'    => 'juego.html#misiones',
+            ];
+            $codigo = pushJuegoEnviarA(db(), $sub, $aviso);
+            if ($codigo === 404 || $codigo === 410) salida(410, ['error' => 'Tu suscripción venció. Vuelve a activar los avisos.']);
+            if ($codigo < 200 || $codigo >= 300) salida(502, ['error' => 'El servicio de avisos no respondió (código ' . $codigo . ')']);
             salida(200, ['ok' => true]);
 
         default:

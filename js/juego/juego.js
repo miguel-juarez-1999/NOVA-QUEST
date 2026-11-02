@@ -28,6 +28,7 @@
     pantallas.forEach((p) => { $(`#pantalla-${p}`).hidden = p !== nombre; });
     $(".juego-hero").hidden = nombre === "juego";
     if (nombre !== "juego") pantallaGrande(false);
+    if (nombre !== "juego" && dialogo.open) dialogo.close(); // "atrás" con el repaso abierto
     if (nave && nombre !== "juego") nave.detener();
     // Lleva la vista y el foco al encabezado de la pantalla nueva (accesibilidad)
     const titulo = $(`#pantalla-${nombre}`).querySelector("h2");
@@ -80,28 +81,32 @@
       guardar("nq_grupo", grupo);
       aviso("");
       estado.progreso = null;
-      await mostrarMisiones();
+      // Reemplaza: "atrás" ya no regresa al formulario de registro
+      reemplazar("misiones");
     } catch (error) {
       aviso(mensajeDeError(error));
     }
   });
 
-  $("[data-salir]").addEventListener("click", () => {
+  $("[data-salir]").addEventListener("click", async () => {
+    // Antes de borrar el token: este navegador deja de recibir avisos del cadete
+    await AvisosJuego.olvidar();
     borrarSesion();
     estado.progreso = null;
     actualizarJugador();
-    mostrar("registro");
+    reemplazar("registro");
   });
 
   // ---------- Misiones ----------
-  async function mostrarMisiones() {
+  async function mostrarMisiones(miTurno) {
     try {
       const [misiones] = await Promise.all([NQ.misiones(), actualizarJugador()]);
+      if (miTurno !== turno) return; // el niño ya se fue a otra pantalla
       const hechas = new Set((estado.progreso?.misiones || []).filter((m) => m.estado === "completada").map((m) => m.codigo));
       const lista = $("[data-lista-misiones]");
       lista.replaceChildren(...misiones.map((m) => {
         const boton = el("button", { type: "button", text: hechas.has(m.codigo) ? "Jugar otra vez" : "Jugar" });
-        boton.addEventListener("click", () => abrirMision(m.codigo));
+        boton.addEventListener("click", () => ir(`mision/${m.codigo}`));
         return el("article", { class: "mision-card" },
           el("img", { src: m.imagen, alt: "", loading: "lazy" }),
           el("div", {},
@@ -112,12 +117,14 @@
             boton));
       }));
       mostrar("misiones");
+      AvisosJuego.revisar();
     } catch (error) {
       aviso(mensajeDeError(error));
     }
   }
 
   // ---------- Lectura ----------
+  // Carga la misión y llena la lectura. Devuelve false si no se puede jugar.
   async function abrirMision(codigo) {
     try {
       const mision = await NQ.mision(codigo);
@@ -125,16 +132,17 @@
       const preguntas = mision.articulos.flatMap((a) => a.preguntas);
       if (!articulo || preguntas.length === 0) {
         aviso("Esta misión estará lista muy pronto. ¡Mientras tanto prueba la Estación Espacial Internacional!");
-        return;
+        return false;
       }
       aviso("");
-      Object.assign(estado, { mision, preguntas, indice: 0, puntos: 0, insignias: [], ultima: null });
+      Object.assign(estado, { mision, preguntas, indice: 0, puntos: 0, insignias: [], ultima: null, resumen: null });
       $("[data-lectura-codigo]").textContent = `${mision.codigo} / ${mision.titulo}`;
       $("[data-lectura-titulo]").textContent = articulo.titulo;
       $("[data-lectura-texto]").textContent = articulo.contenido;
-      mostrar("lectura");
+      return true;
     } catch (error) {
       aviso(mensajeDeError(error));
+      return false;
     }
   }
 
@@ -230,10 +238,18 @@
         responder: (opcionId) => NQ.responder(opcionId),
         alRespuesta: (r) => {
           estado.ultima = r; estado.insignias.push(...r.insignias_nuevas);
+          r.insignias_nuevas.forEach((codigo) =>
+            AvisosJuego.local(`🏅 ¡Insignia nueva: ${INSIGNIAS[codigo] || codigo}!`, "La puedes ver al terminar la misión."));
           if (r.correcta && r.explicacion) mostrarDato(r.explicacion);
         },
         alHud: actualizarHud,
-        alTerminar: (info) => { estado.puntos = info.puntos; estado.resumen = info; mostrarFinal(); },
+        alTerminar: (info) => {
+          // Si el niño ya salió del juego (atrás), no se le cambia la pantalla
+          if (!rutaActual().startsWith("jugar/")) return;
+          estado.puntos = info.puntos; estado.resumen = info;
+          // Reemplaza: "atrás" desde el resultado no regresa a un juego terminado
+          reemplazar("resultado");
+        },
         alPerder: () => overlay("perdio"),
         alError: (error) => aviso(mensajeDeError(error))
       });
@@ -269,12 +285,70 @@
     } catch { /* el ranking es opcional */ }
   }
 
-  document.querySelectorAll("[data-volver]").forEach((b) => b.addEventListener("click", mostrarMisiones));
-  $("[data-ir-preguntas]").addEventListener("click", despegar);
+  document.querySelectorAll("[data-volver]").forEach((b) => b.addEventListener("click", () => volverA("misiones")));
+  $("[data-ir-preguntas]").addEventListener("click", () => {
+    entrarAlJuego = true;
+    ir(`jugar/${estado.mision.codigo}`);
+  });
+
+  // ---------- Rutas ----------
+  // Cada pantalla tiene su ruta (#misiones, #mision/NQ-03, #jugar/NQ-03,
+  // #resultado, #registro) para que el botón "atrás" del navegador regrese a
+  // la pantalla anterior del juego y no a otra página del sitio.
+  let turno = 0;              // evita que una carga lenta pinte una pantalla vieja
+  let entrarAlJuego = false;  // #jugar solo se abre desde el botón "Ir a las preguntas"
+
+  const rutaActual = () => decodeURIComponent(location.hash.slice(1));
+
+  // Nueva entrada en el historial (avanzar)
+  function ir(ruta) {
+    if (ruta !== rutaActual()) history.pushState({ desde: rutaActual() }, "", `#${ruta}`);
+    mostrarRuta();
+  }
+  // Cambia la entrada actual sin dejar rastro (registro, resultado, rutas inválidas)
+  function reemplazar(ruta) {
+    history.replaceState({ desde: history.state?.desde ?? null }, "", `#${ruta}`);
+    mostrarRuta();
+  }
+  // Botones "volver": si la pantalla anterior es esa, equivale a "atrás"
+  function volverA(ruta) {
+    if (history.state?.desde === ruta) history.back(); else reemplazar(ruta);
+  }
+
+  async function mostrarRuta() {
+    const miTurno = ++turno;
+    const [pantalla, codigo] = rutaActual().split("/");
+    if (!leer("nq_token")) {
+      if (pantalla !== "registro") reemplazar("registro"); else mostrar("registro");
+      return;
+    }
+    switch (pantalla) {
+      case "misiones":
+        return mostrarMisiones(miTurno);
+      case "mision": {
+        const lista = await abrirMision(codigo);
+        if (miTurno !== turno) return;
+        if (lista) mostrar("lectura"); else reemplazar("misiones");
+        return;
+      }
+      case "jugar":
+        // Al recargar o con "adelante" no se puede retomar una partida: a la lectura
+        if (entrarAlJuego && estado.mision?.codigo === codigo) { entrarAlJuego = false; despegar(); }
+        else reemplazar(`mision/${codigo}`);
+        return;
+      case "resultado":
+        if (estado.resumen) mostrarFinal(); else reemplazar("misiones");
+        return;
+      default:
+        // Sin ruta, o #registro con sesión iniciada
+        reemplazar("misiones");
+    }
+  }
+  window.addEventListener("popstate", mostrarRuta);
 
   // ---------- Inicio ----------
   async function iniciar() {
-    if (!leer("nq_token")) { mostrar("registro"); return; }
+    if (!leer("nq_token")) { mostrarRuta(); return; }
     try {
       estado.progreso = await NQ.progreso();
     } catch (error) {
@@ -282,7 +356,7 @@
         // El servidor rechazó el token: se pide registrarse de nuevo
         borrarSesion();
         await actualizarJugador();
-        mostrar("registro");
+        mostrarRuta();
         return;
       }
       // Sin conexión u otro fallo: se conserva la sesión y se intenta con lo guardado
@@ -291,7 +365,7 @@
         : mensajeDeError(error));
     }
     await actualizarJugador(false);
-    await mostrarMisiones();
+    mostrarRuta();
   }
   iniciar();
 })();

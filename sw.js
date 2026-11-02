@@ -22,7 +22,7 @@
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v10";
+const CACHE_VERSION = "novaquest-v12";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -58,8 +58,9 @@ const PRECACHE_URLS = [
   "./css/tiempo.css",
   "./js/app.js",
   "./js/api.js",
-  "./js/juego.js",
-  "./js/nave.js",
+  "./js/juego/juego.js",
+  "./js/juego/avisos.js",
+  "./js/juego/nave.js",
   "./js/tiempo.js",
   "./js/vendor/phaser.min.js",
 
@@ -277,7 +278,9 @@ self.addEventListener("push", (event) => {
       body: datos.cuerpo || "¡Tu viaje en el tiempo te espera!",
       icon: "./assets/icons/icon-192.png",
       badge: "./assets/icons/icon-192.png",
-      tag: "novaquest-tiempo",
+      // Cada apartado manda su propia etiqueta (el juego: "novaquest-juego")
+      // para que sus avisos no reemplacen a los de la línea del tiempo
+      tag: datos.tag || "novaquest-tiempo",
       renotify: true,
       lang: "es",
       data: { url: datos.url || "linea-tiempo.html" },

@@ -469,3 +469,36 @@
 .arena-panel.completa .arena-ayuda {
   display: none;
 }
+
+/* ---------- Avisos push del juego ---------- */
+.avisos-juego {
+  max-width: 760px;
+  margin-top: 50px;
+  padding: 28px clamp(20px, 3vw, 34px) 30px;
+  background: #fff;
+  border: 1px solid var(--ink);
+}
+.avisos-juego.activa {
+  border-left: 8px solid var(--acid);
+}
+.avisos-juego h3 {
+  margin: 12px 0 10px;
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.1;
+  letter-spacing: -0.04em;
+}
+.avisos-juego-texto {
+  margin: 0;
+  font-size: 16px;
+}
+.avisos-juego-adulto {
+  margin: 12px 0 0;
+  font: 600 11px var(--mono);
+}
+.avisos-juego-estado {
+  margin: 18px 0 0;
+  font: 600 12px var(--mono);
+}
+.avisos-juego-estado:empty {
+  display: none;
+}
