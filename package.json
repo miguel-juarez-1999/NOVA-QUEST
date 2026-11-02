@@ -1,0 +1,21 @@
+{
+  "name": "nova-quest",
+  "version": "1.0.0",
+  "description": "**NovaQuest** es una experiencia web educativa para explorar planetas, lunas y misiones científicas. Su interfaz adopta la forma de un archivo científico contemporáneo: navegación lateral en escritorio, barra inferior en móvil, portada editorial, fotografías espaciales y registros organizados como una mesa de control.",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/miguel-juarez-1999/NOVA-QUEST.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/miguel-juarez-1999/NOVA-QUEST/issues"
+  },
+  "homepage": "https://github.com/miguel-juarez-1999/NOVA-QUEST#readme"
+}

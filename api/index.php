@@ -9,6 +9,11 @@
 //   GET  r=ranking&codigo_grupo=DEMO01 top 10 del grupo
 //   GET  r=linea_tiempo                etapas con eventos, viñetas y reto
 //   POST r=etapa_progreso              {etapa_id, vinetas_vistas} (X-Token)
+//   POST r=reiniciar_tiempo            borra el progreso de la línea de tiempo (X-Token)
+//   GET  r=push_clave                  clave pública VAPID para suscribirse
+//   POST r=push_suscribir              {endpoint, keys:{p256dh, auth}} (X-Token opcional)
+//   POST r=push_baja                   {endpoint}
+//   POST r=push_prueba                 {endpoint} -> envía un aviso a ese navegador
 // =====================================================================
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
@@ -162,6 +167,12 @@ try {
                     $n = $pdo->prepare("SELECT COUNT(*) FROM progreso WHERE usuario_id = ? AND estado = 'completada'");
                     $n->execute([$u['id']]);
                     if ((int)$n->fetchColumn() >= 3 && darInsignia($pdo, (int)$u['id'], 'explorador')) $insignias[] = 'explorador';
+                } else {
+                    // ¿Ya resolvió los retos de todas las etapas que tienen reto?
+                    $hechas = $pdo->prepare("SELECT COUNT(*) FROM progreso_etapas WHERE usuario_id = ? AND estado = 'completada'");
+                    $hechas->execute([$u['id']]);
+                    $conReto = (int)$pdo->query('SELECT COUNT(DISTINCT etapa_id) FROM preguntas WHERE etapa_id IS NOT NULL')->fetchColumn();
+                    if ((int)$hechas->fetchColumn() >= $conReto && darInsignia($pdo, (int)$u['id'], 'viajero_tiempo')) $insignias[] = 'viajero_tiempo';
                 }
             }
             $pdo->commit();
@@ -242,6 +253,68 @@ try {
             db()->prepare("INSERT INTO progreso_etapas (usuario_id, etapa_id, estado, vinetas_vistas) VALUES (?,?, 'en_curso', ?)
                            ON DUPLICATE KEY UPDATE vinetas_vistas = GREATEST(vinetas_vistas, VALUES(vinetas_vistas))")
                 ->execute([$u['id'], $etapaId, $vistas]);
+            salida(200, ['ok' => true]);
+
+        case 'reiniciar_tiempo':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            $pdo = db();
+            $pdo->beginTransaction();
+            // Solo el progreso de la línea de tiempo; las misiones no se tocan
+            $pdo->prepare('DELETE FROM progreso_etapas WHERE usuario_id = ?')->execute([$u['id']]);
+            $pdo->prepare('DELETE i FROM intentos i JOIN preguntas p ON p.id = i.pregunta_id
+                           WHERE i.usuario_id = ? AND p.etapa_id IS NOT NULL')->execute([$u['id']]);
+            $pdo->prepare("DELETE ui FROM usuario_insignias ui JOIN insignias ins ON ins.id = ui.insignia_id
+                           WHERE ui.usuario_id = ? AND ins.codigo = 'viajero_tiempo'")->execute([$u['id']]);
+            $pdo->commit();
+            salida(200, ['ok' => true]);
+
+        case 'push_clave':
+            require_once __DIR__ . '/push.php';
+            salida(200, ['clave' => pushClaves()['publica']]);
+
+        case 'push_suscribir':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $b = cuerpo();
+            $endpoint = (string)($b['endpoint'] ?? '');
+            $p256dh   = (string)($b['keys']['p256dh'] ?? '');
+            $auth     = (string)($b['keys']['auth'] ?? '');
+            if (!preg_match('#^https://[^\s]{10,590}$#', $endpoint)
+                || !preg_match('/^[A-Za-z0-9_-]{80,100}$/', $p256dh)
+                || !preg_match('/^[A-Za-z0-9_-]{16,30}$/', $auth)) salida(422, ['error' => 'Suscripción inválida']);
+            // El token es opcional: los avisos también sirven sin cadete
+            $uid = null;
+            if (isset($_SERVER['HTTP_X_TOKEN'])) $uid = (int)usuarioActual()['id'];
+            db()->prepare('INSERT INTO push_suscripciones (usuario_id, endpoint_hash, endpoint, p256dh, auth) VALUES (?,?,?,?,?)
+                           ON DUPLICATE KEY UPDATE usuario_id = COALESCE(VALUES(usuario_id), usuario_id),
+                                                   p256dh = VALUES(p256dh), auth = VALUES(auth)')
+                ->execute([$uid, hash('sha256', $endpoint), $endpoint, $p256dh, $auth]);
+            salida(201, ['ok' => true]);
+
+        case 'push_baja':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            db()->prepare('DELETE FROM push_suscripciones WHERE endpoint_hash = ?')
+                ->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? ''))]);
+            salida(200, ['ok' => true]);
+
+        case 'push_prueba':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            require_once __DIR__ . '/push.php';
+            $st = db()->prepare('SELECT id, endpoint, p256dh, auth, TIMESTAMPDIFF(SECOND, ultimo_envio, NOW()) AS hace
+                                 FROM push_suscripciones WHERE endpoint_hash = ?');
+            $st->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? ''))]);
+            $sub = $st->fetch() ?: salida(404, ['error' => 'Primero activa los avisos']);
+            // Máximo un aviso de prueba cada 20 segundos por navegador
+            if ($sub['hace'] !== null && (int)$sub['hace'] < 20) {
+                salida(429, ['error' => 'Espera unos segundos antes de pedir otro aviso']);
+            }
+            $codigo = pushEnviar($sub, pushDatoCurioso(db()));
+            if ($codigo === 404 || $codigo === 410) {
+                db()->prepare('DELETE FROM push_suscripciones WHERE id = ?')->execute([$sub['id']]);
+                salida(410, ['error' => 'Tu suscripción venció. Vuelve a activar los avisos.']);
+            }
+            if ($codigo < 200 || $codigo >= 300) salida(502, ['error' => 'El servicio de avisos no respondió (código ' . $codigo . ')']);
+            db()->prepare('UPDATE push_suscripciones SET ultimo_envio = NOW() WHERE id = ?')->execute([$sub['id']]);
             salida(200, ['ok' => true]);
 
         default:

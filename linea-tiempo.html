@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Viaje en el tiempo: la historia de la Tierra en etapas, con historietas interactivas."
+      content="Viaje en el tiempo: la historia de la Tierra en una historieta interactiva para niños, con retos, sellos y avisos de datos curiosos."
     />
     <title>Viaje en el tiempo | NovaQuest</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -45,17 +45,46 @@
         <header class="status-bar">
           <p><span>NovaQuest</span> / Viaje en el tiempo</p>
           <div>
-            <span class="status-pill"><i></i> 4,600 millones de años</span>
+            <a class="status-pill campana" href="#avisos" data-campana
+              ><i></i> <span data-campana-texto>Avisos</span></a
+            >
           </div>
         </header>
 
         <section class="tiempo-hero">
-          <p class="kicker">Historia de la Tierra / Beta 01</p>
-          <h1>VIAJE EN<br /><em>EL TIEMPO</em></h1>
-          <p class="tiempo-hero-texto">
-            Arrastra la máquina del tiempo y descubre cómo nació nuestro
-            planeta.
-          </p>
+          <div class="tiempo-hero-titulo">
+            <p class="kicker">Historia de la Tierra / Historieta interactiva</p>
+            <h1>VIAJE EN<br /><em>EL TIEMPO</em></h1>
+            <p class="tiempo-hero-texto">
+              Súbete a la máquina del tiempo con Capi Nova y descubre cómo
+              nació nuestro planeta, hace 4,600 millones de años.
+            </p>
+            <ol class="pasos" aria-label="Cómo jugar">
+              <li><b>1</b> Lee la historieta</li>
+              <li><b>2</b> Resuelve el reto</li>
+              <li><b>3</b> Gana el sello</li>
+            </ol>
+          </div>
+          <div class="pasaporte" aria-labelledby="pasaporte-titulo">
+            <p class="pasaporte-titulo" id="pasaporte-titulo">
+              🛂 Mi pasaporte del tiempo
+            </p>
+            <ol class="sellos" data-sellos></ol>
+            <div class="pasaporte-barra" aria-hidden="true">
+              <i data-sellos-barra></i>
+            </div>
+            <p class="pasaporte-texto" data-sellos-texto>
+              Completa cada etapa para ganar su sello.
+            </p>
+            <button
+              class="btn-reiniciar"
+              type="button"
+              data-reiniciar
+              aria-live="polite"
+            >
+              ↺ Reiniciar mi viaje
+            </button>
+          </div>
         </section>
 
         <section class="tiempo-zona">
@@ -70,24 +99,37 @@
           <div
             class="chips"
             data-chips
+            role="group"
             aria-label="Etapas de la historia de la Tierra"
           ></div>
 
           <article class="evento" data-evento aria-live="polite">
             <div class="evento-escena" data-escena>
+              <p class="evento-num" data-num></p>
               <span class="evento-icono" data-icono aria-hidden="true"></span>
               <p class="evento-hace" data-hace></p>
             </div>
             <div class="evento-texto">
               <p class="section-code" data-etapa></p>
+              <p class="evento-etapa-desc" data-etapa-desc></p>
               <h2 data-titulo></h2>
               <p data-texto></p>
+              <button
+                class="btn-voz"
+                type="button"
+                data-leer-evento
+                aria-pressed="false"
+                hidden
+              >
+                🔊 Escuchar
+              </button>
             </div>
           </article>
 
           <div class="maquina">
             <label for="maquina" class="maquina-titulo"
-              >⏳ Máquina del tiempo</label
+              >⏳ Máquina del tiempo
+              <small>Arrástrala o usa las flechas ← →</small></label
             >
             <input
               type="range"
@@ -110,8 +152,15 @@
           </div>
 
           <section class="historieta" data-historieta hidden>
-            <p class="section-code">HISTORIETA</p>
-            <div class="comic" data-comic></div>
+            <div class="historieta-cabeza">
+              <p class="section-code">
+                HISTORIETA · <span data-vineta-cuenta></span>
+              </p>
+              <label class="auto-voz" data-auto-voz-caja hidden>
+                <input type="checkbox" data-auto-voz /> 🔊 Leer en voz alta
+              </label>
+            </div>
+            <div class="comic" data-comic aria-live="polite"></div>
             <button class="btn-tiempo acid" type="button" data-siguiente>
               Siguiente viñeta →
             </button>
@@ -119,7 +168,9 @@
 
           <section class="reloj" aria-label="La Tierra en 24 horas">
             <p class="section-code">LA TIERRA EN 24 HORAS</p>
-            <div class="reloj-barra"><i data-reloj-marca></i></div>
+            <div class="reloj-barra" data-reloj-barra>
+              <i data-reloj-marca></i>
+            </div>
             <ol class="reloj-horas" aria-hidden="true">
               <li>00:00</li>
               <li>06:00</li>
@@ -132,7 +183,71 @@
 
           <section class="reto" data-reto hidden>
             <p class="section-code" data-reto-etapa>RETO</p>
+            <p class="reto-intro">
+              Responde bien para ganar el sello de esta etapa.
+            </p>
             <div data-reto-lista></div>
+          </section>
+
+          <section class="orden" aria-labelledby="orden-titulo" data-orden hidden>
+            <p class="section-code">MINIJUEGO</p>
+            <h2 id="orden-titulo">¿Qué pasó primero?</h2>
+            <p class="orden-ronda" data-orden-ronda></p>
+            <div class="orden-opciones" data-orden-opciones></div>
+            <p class="orden-msg" data-orden-msg role="status"></p>
+            <button class="btn-tiempo acid" type="button" data-orden-otra hidden>
+              Siguiente ronda →
+            </button>
+          </section>
+
+          <section class="diploma" data-diploma hidden aria-labelledby="diploma-titulo">
+            <p class="diploma-sello" aria-hidden="true">🏆</p>
+            <p class="section-code">NOVAQUEST · CERTIFICADO</p>
+            <h2 id="diploma-titulo">Diploma de Viajero del Tiempo</h2>
+            <p>Se entrega a</p>
+            <label class="diploma-nombre">
+              <span class="sr-only">Escribe tu nombre</span>
+              <input
+                type="text"
+                maxlength="30"
+                placeholder="Escribe tu nombre"
+                data-diploma-nombre
+              />
+            </label>
+            <p>
+              por viajar 4,600 millones de años y conocer cada etapa de la
+              historia de la Tierra.
+            </p>
+            <ol class="diploma-sellos" data-diploma-sellos aria-hidden="true"></ol>
+            <p class="diploma-fecha" data-diploma-fecha></p>
+            <button class="btn-tiempo acid" type="button" data-diploma-imprimir>
+              🖨️ Imprimir mi diploma
+            </button>
+          </section>
+
+          <section class="avisos" id="avisos" aria-labelledby="avisos-titulo">
+            <p class="section-code">AVISOS DEL ESPACIO</p>
+            <h2 id="avisos-titulo">🔔 ¿Te aviso con datos curiosos?</h2>
+            <p>
+              Te mandaremos un “¿Sabías que...?” de la historia de la Tierra,
+              aunque tengas la página cerrada. También te avisaremos cuando
+              ganes un sello.
+            </p>
+            <p class="avisos-adulto">
+              👨‍👩‍👧 Pídele permiso a un adulto antes de activar los avisos.
+            </p>
+            <p class="avisos-estado" data-avisos-estado role="status"></p>
+            <div class="avisos-botones">
+              <button class="btn-tiempo acid" type="button" data-avisos-activar>
+                🔔 Activar avisos
+              </button>
+              <button class="btn-tiempo" type="button" data-avisos-probar hidden>
+                ✨ Mándame un dato curioso
+              </button>
+              <button class="btn-tiempo" type="button" data-avisos-desactivar hidden>
+                Desactivar avisos
+              </button>
+            </div>
           </section>
         </section>
 
@@ -143,6 +258,7 @@
         </footer>
       </main>
     </div>
+    <div class="toasts" data-toasts aria-live="polite"></div>
     <nav class="mobile-dock" aria-label="Navegación móvil">
       <a href="index.html"><span>⌂</span>Inicio</a>
       <a href="misiones.html"><span>◎</span>Misiones</a>

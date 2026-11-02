@@ -22,7 +22,7 @@
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v9";
+const CACHE_VERSION = "novaquest-v10";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -255,6 +255,52 @@ self.addEventListener("fetch", (event) => {
           return respuesta;
         })
     )
+  );
+});
+
+
+// ---------------------------------------------------------------------
+// 5b. NOTIFICACIONES PUSH
+// ---------------------------------------------------------------------
+
+// PUSH: llega un aviso del servidor (api/push.php), aunque la página esté
+// cerrada. El mensaje viene cifrado y el navegador ya lo descifró.
+self.addEventListener("push", (event) => {
+  let datos = {};
+  try {
+    datos = event.data ? event.data.json() : {};
+  } catch {
+    datos = { cuerpo: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(datos.titulo || "🚀 NovaQuest", {
+      body: datos.cuerpo || "¡Tu viaje en el tiempo te espera!",
+      icon: "./assets/icons/icon-192.png",
+      badge: "./assets/icons/icon-192.png",
+      tag: "novaquest-tiempo",
+      renotify: true,
+      lang: "es",
+      data: { url: datos.url || "linea-tiempo.html" },
+    })
+  );
+});
+
+// NOTIFICATIONCLICK: al tocar el aviso se abre (o se enfoca) la página
+// en el momento de la historia que menciona.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const destino = new URL(event.notification.data?.url || "linea-tiempo.html", self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ventanas) => {
+      const abierta = ventanas.find((v) => v.url.split("#")[0] === destino.split("#")[0]);
+      if (abierta) {
+        return abierta
+          .navigate(destino)
+          .then((v) => (v || abierta).focus())
+          .catch(() => abierta.focus());
+      }
+      return self.clients.openWindow(destino);
+    })
   );
 });
 
