@@ -24,7 +24,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v19-kevin-nasa-backend";
+const CACHE_VERSION = "novaquest-v20-kevin-nasa-supabase";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"

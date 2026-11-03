@@ -6,8 +6,8 @@
 // - guarda datos en cache_api_nasa, objetos_nasa y aproximaciones_nasa;
 // - registra y prueba suscripciones reales en push_nasa.
 // =====================================================================
-import { createClient } from "@supabase/supabase-js";
-import webpush from "web-push";
+import { createClient } from "npm:@supabase/supabase-js@2.76.1";
+import webpush from "npm:web-push@3.6.7";
 
 const allowedOrigins = new Set([
   "https://kevinjimarez.github.io",
@@ -72,6 +72,28 @@ function requiredSecret(name: string): string {
   return value;
 }
 
+function supabaseServerKey(): string {
+  // Los proyectos recientes entregan las claves privadas en un diccionario JSON.
+  // La clave sb_secret_ se usa solamente dentro de esta Edge Function y nunca
+  // se envía al navegador. Se conserva la variable heredada como respaldo.
+  const encodedKeys = Deno.env.get("SUPABASE_SECRET_KEYS");
+  if (encodedKeys) {
+    try {
+      const keys = JSON.parse(encodedKeys);
+      const pending: unknown[] = [keys];
+      while (pending.length) {
+        const item = pending.shift();
+        if (typeof item === "string" && item.startsWith("sb_secret_")) return item;
+        if (Array.isArray(item)) pending.push(...item);
+        else if (item && typeof item === "object") pending.push(...Object.values(item));
+      }
+    } catch {
+      // Si cambia el formato, la clave heredada mantiene compatibilidad.
+    }
+  }
+  return requiredSecret("SUPABASE_SERVICE_ROLE_KEY");
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(request) });
 
@@ -79,7 +101,7 @@ Deno.serve(async (request) => {
   const route = url.searchParams.get("r") || "salud";
   const supabase = createClient(
     requiredSecret("SUPABASE_URL"),
-    requiredSecret("SUPABASE_SERVICE_ROLE_KEY"),
+    supabaseServerKey(),
     { auth: { persistSession: false } },
   );
 

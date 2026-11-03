@@ -29,19 +29,19 @@ Por ello se agregan:
 
 Esta separación mantiene una relación de uno a muchos y evita tocar las tablas creadas por Miguel y Romel.
 
-## Estado de la beta
+## Estado de la integración
 
-La persistencia local ya funciona mediante `api/kevin/index.php`: la primera consulta descarga NASA NeoWs y la segunda reutiliza `cache_api_nasa`. Los objetos y sus aproximaciones se normalizan en tablas separadas. La computadora también quedó registrada en `push_nasa` y recibió un Web Push real desde el backend local.
+La persistencia local funciona mediante `api/kevin/index.php` y se conserva para explicar el desarrollo. La versión presentada ya no depende de XAMPP: GitHub Pages sirve la PWA y la Edge Function `kevin-nasa` usa PostgreSQL en Supabase.
 
-Para la versión pública se preparó una Edge Function independiente en `supabase/functions/kevin-nasa/` y la migración PostgreSQL equivalente. GitHub Pages seguirá publicando el frontend; Supabase alojará los datos y el código seguro que no debe quedar en el navegador.
+La prueba pública del 3 de noviembre de 2026 consultó NASA NeoWs, guardó 5 objetos y respondió la segunda vez desde `cache_api_nasa`. Las cuatro tablas tienen RLS activo; el navegador no accede directamente a ellas y las claves privadas están cifradas como secretos de Supabase.
 
 El backend implementado:
 
-1. Consulte NASA con una llave privada.
-2. Valide y normalice la respuesta.
-3. Inserte o actualice `objetos_nasa`.
-4. Inserte las aproximaciones nuevas.
-5. Use `cache_api_nasa` para reducir llamadas repetidas sin afectar otros módulos.
+1. Consulta NASA con una llave privada.
+2. Valida y normaliza la respuesta.
+3. Inserta o actualiza `objetos_nasa`.
+4. Inserta las aproximaciones nuevas.
+5. Usa `cache_api_nasa` para reducir llamadas repetidas sin afectar otros módulos.
 6. Entrega a la PWA la respuesta educativa y registra suscripciones Web Push.
 
 ## Lenguajes y tecnologías identificados

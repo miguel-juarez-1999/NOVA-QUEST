@@ -64,5 +64,20 @@ alter table public.objetos_nasa enable row level security;
 alter table public.aproximaciones_nasa enable row level security;
 alter table public.push_nasa enable row level security;
 
+-- Solamente la Edge Function (rol de servidor) puede operar las tablas.
+-- RLS permanece activo y no se crean políticas para visitantes del navegador.
+grant select, insert, update, delete on table
+  public.cache_api_nasa,
+  public.objetos_nasa,
+  public.aproximaciones_nasa,
+  public.push_nasa
+to service_role;
+
+grant usage, select on sequence
+  public.objetos_nasa_id_seq,
+  public.aproximaciones_nasa_id_seq,
+  public.push_nasa_id_seq
+to service_role;
+
 comment on table public.cache_api_nasa is 'Caché de servidor exclusiva del explorador NASA de Kevin.';
 comment on table public.push_nasa is 'Suscripciones Web Push exclusivas del módulo NASA.';
