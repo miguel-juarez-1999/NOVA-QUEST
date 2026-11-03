@@ -33,12 +33,10 @@
           ><span>N</span><span>Q</span></a
         >
         <nav class="rail-nav">
-          <a href="index.html"><span>01</span><strong>Inicio</strong></a>
-          <a href="misiones.html"><span>02</span><strong>Misiones</strong></a>
-          <a class="active" href="explorador.html"
-            ><span>03</span><strong>Órbita</strong></a
+          <!-- Presentación de Kevin: se ocultan las rutas de otros módulos. -->
+          <a href="misiones.html#selector"
+            ><span>01</span><strong>Selector interactivo</strong></a
           >
-          <a href="#datos"><span>04</span><strong>Datos</strong></a>
         </nav>
         <div class="rail-foot">
           <span class="live-dot"></span><small>NASA API<br />beta</small>
@@ -188,11 +186,21 @@
       </main>
     </div>
 
+    <dialog class="install-help" data-install-help aria-labelledby="install-help-title">
+      <button class="install-help-close" type="button" data-install-help-close aria-label="Cerrar">×</button>
+      <p class="section-code">INSTALACIÓN / IPHONE Y IPAD</p>
+      <h2 id="install-help-title">Agrega NovaQuest a tu pantalla de inicio</h2>
+      <ol>
+        <li>Abre esta página en <strong>Safari</strong>.</li>
+        <li>Toca el botón <strong>Compartir</strong> de Safari.</li>
+        <li>Elige <strong>Agregar a pantalla de inicio</strong> y confirma con <strong>Agregar</strong>.</li>
+        <li>Abre NovaQuest desde su nuevo icono para activar notificaciones.</li>
+      </ol>
+      <p>Apple solicita este procedimiento manual; por eso iPhone no muestra el mismo cuadro automático de Chrome.</p>
+    </dialog>
+
     <nav class="mobile-dock explorer-dock" aria-label="Navegación móvil">
-      <a href="index.html"><span>⌂</span>Inicio</a>
-      <a href="misiones.html"><span>◎</span>Misiones</a>
-      <a class="active" href="explorador.html"><span>◉</span>Órbita</a>
-      <a href="#datos"><span>≋</span>Datos</a>
+      <a href="misiones.html#selector"><span>✦</span>Selector interactivo</a>
     </nav>
   </body>
 </html>

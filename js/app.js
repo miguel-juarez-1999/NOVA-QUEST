@@ -50,6 +50,18 @@ document.querySelector("[data-selector]")?.addEventListener("submit", (event) =>
 // Conserva el evento de instalación para mostrar un botón propio cuando
 // Chrome/Edge determine que la PWA cumple los requisitos de instalación.
 let deferredInstallPrompt = null;
+const installHelp = document.querySelector("[data-install-help]");
+const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent)
+  || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const isStandalone = window.matchMedia("(display-mode: standalone)").matches
+  || navigator.standalone === true;
+
+if (isIos && !isStandalone) {
+  document.querySelectorAll("[data-install-app]").forEach((button) => {
+    button.hidden = false;
+    button.textContent = "Instalar en iPhone";
+  });
+}
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
@@ -61,10 +73,18 @@ window.addEventListener("beforeinstallprompt", (event) => {
 
 document.querySelectorAll("[data-install-app]").forEach((button) => {
   button.addEventListener("click", async () => {
-    if (!deferredInstallPrompt) return;
+    if (!deferredInstallPrompt) {
+      installHelp?.showModal();
+      return;
+    }
     await deferredInstallPrompt.prompt();
     await deferredInstallPrompt.userChoice;
     deferredInstallPrompt = null;
     button.hidden = true;
   });
+});
+
+document.querySelector("[data-install-help-close]")?.addEventListener("click", () => installHelp?.close());
+installHelp?.addEventListener("click", (event) => {
+  if (event.target === installHelp) installHelp.close();
 });

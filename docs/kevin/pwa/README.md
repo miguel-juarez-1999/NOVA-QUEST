@@ -10,7 +10,7 @@ Esta carpeta reunirá la explicación y las evidencias de la integración NASA. 
 | 4 | Web App Manifest | Nombre, iconos, inicio, alcance y modo standalone | Código y panel Application | Cumple |
 | 5 | Service Worker | Un único `sw.js` compartido con bloques marcados de Kevin | Código, registro y estado activo | Cumple |
 | 6 | Funcionamiento sin conexión | App shell y último conjunto NASA disponible | Prueba Offline en DevTools | Cumple en código; falta captura final |
-| 7 | Notificaciones push | `push_nasa`, endpoints propios y evento push compartido | Suscripción y recepción en iPhone | Backend público listo; falta prueba iPhone |
+| 7 | Notificaciones push | `push_nasa`, endpoints propios y evento push compartido | Suscripción y recepción en computadora e iPhone | Cumple en PC; falta captura iPhone |
 | 8 | Almacenamiento en caché | `cache_api_nasa` en servidor y `NASA_CACHE` en navegador | Tabla, Cache Storage y prueba sin red | Cumple en Supabase y navegador |
 | 9 | Accesibilidad mediante URL | Ruta pública del fork | Apertura desde Mac e iPhone | Cumple |
 | 10 | Actualización automática | Versionado del caché y activación del Service Worker | Cambio de versión y nueva carga | Cumple |
@@ -64,3 +64,20 @@ SELECT id, creado_en, ultimo_envio FROM push_nasa;
 - Las tablas tienen RLS activo y no poseen políticas para visitantes.
 - Solamente la Edge Function cuenta con permisos del rol `service_role`.
 - Las claves NASA y VAPID permanecen cifradas en Supabase y fuera del repositorio.
+- Chrome quedó registrado en `push_nasa` y recibió una notificación Web Push enviada por la Edge Function.
+
+## Cómo abrir la versión local actualizada
+
+```bash
+cd "/Applications/XAMPP/work/NOVA-QUEST-equipo"
+php -S 127.0.0.1:8094
+```
+
+Después abre `http://127.0.0.1:8094/explorador.html`. Esa copia local usa la misma Edge Function y la misma base Supabase que GitHub Pages, por lo que no necesita MySQL. La variante `?backend=local` queda disponible exclusivamente para explicar el prototipo PHP/MySQL.
+
+## Separación respecto al trabajo del equipo
+
+- Kevin usa `push_nasa`; no modifica las suscripciones ni el código de notificaciones de Miguel o Romel.
+- Kevin usa `cache_api_nasa`, `objetos_nasa` y `aproximaciones_nasa`; las tablas del juego permanecen intactas.
+- El navegador llama solamente a `kevin-nasa`; la función compartida `sw.js` contiene bloques marcados, pero conserva la compatibilidad con los demás módulos.
+- La navegación de la presentación muestra sólo `Selector interactivo`; los archivos del equipo no se borran.

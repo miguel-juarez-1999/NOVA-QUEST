@@ -35,6 +35,8 @@ La persistencia local funciona mediante `api/kevin/index.php` y se conserva para
 
 La prueba pública del 3 de noviembre de 2026 consultó NASA NeoWs, guardó 5 objetos y respondió la segunda vez desde `cache_api_nasa`. Las cuatro tablas tienen RLS activo; el navegador no accede directamente a ellas y las claves privadas están cifradas como secretos de Supabase.
 
+La suscripción de la computadora se guardó solamente en `push_nasa` y la prueba de envío se completó desde Supabase. Esta tabla, los endpoints `push_*` de Kevin y las claves VAPID propias están separados de las notificaciones desarrolladas por Miguel y Romel.
+
 El backend implementado:
 
 1. Consulta NASA con una llave privada.

@@ -17,11 +17,13 @@ if (canvas) {
   const notifyButton = document.querySelector("[data-notify]");
   const testNotifyButton = document.querySelector("[data-test-notify]");
 
-  // La URL del backend nunca contiene contraseñas. En local apunta al PHP
-  // de este repositorio; en GitHub Pages se asignará la URL HTTPS del hosting.
+  // La URL del backend nunca contiene contraseñas. Local y GitHub Pages usan
+  // Supabase por defecto para que la demostración no dependa de MySQL/XAMPP.
+  // Agrega ?backend=local solamente cuando quieras explicar el PHP de apoyo.
   const kevinConfig = window.NQ_KEVIN_CONFIG || {};
   const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
-  const apiBaseUrl = isLocal
+  const useLocalBackend = isLocal && new URLSearchParams(window.location.search).get("backend") === "local";
+  const apiBaseUrl = useLocalBackend
     ? new URL(kevinConfig.localApiPath || "api/kevin/index.php", document.baseURI).href
     : (kevinConfig.productionApiUrl || "");
 
