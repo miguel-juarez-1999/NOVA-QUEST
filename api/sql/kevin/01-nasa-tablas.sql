@@ -5,6 +5,18 @@
 
 START TRANSACTION;
 
+-- Caché de servidor exclusivo de la integración NASA.
+-- No utiliza `cache_api`, por lo que una limpieza o actualización de este
+-- módulo no modifica el caché de Miguel o Romel.
+CREATE TABLE IF NOT EXISTS `cache_api_nasa` (
+  `clave` varchar(180) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `respuesta` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
+  `consultado_en` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `expira_en` datetime NOT NULL,
+  PRIMARY KEY (`clave`),
+  KEY `idx_cache_api_nasa_expira` (`expira_en`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- Catálogo normalizado de objetos recibidos desde NASA NeoWs.
 CREATE TABLE IF NOT EXISTS `objetos_nasa` (
   `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -45,7 +57,3 @@ CREATE TABLE IF NOT EXISTS `aproximaciones_nasa` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 COMMIT;
-
--- La tabla existente `cache_api` se reutilizará desde el backend para guardar
--- respuestas temporales. No se duplica porque ya contiene clave, respuesta y
--- fecha de expiración.

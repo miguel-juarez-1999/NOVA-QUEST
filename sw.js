@@ -24,7 +24,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v17-kevin-nasa";
+const CACHE_VERSION = "novaquest-v18-kevin-structure";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -63,7 +63,7 @@ const PRECACHE_URLS = [
   "./css/styles.css",
   "./css/juego.css",
   "./css/tiempo.css",
-  "./css/explorer.css",
+  "./css/kevin/explorador.css",
   "./js/app.js",
   "./js/api.js",
   "./js/juego/juego.js",
@@ -71,7 +71,7 @@ const PRECACHE_URLS = [
   "./js/juego/pendientes.js",
   "./js/juego/nave.js",
   "./js/tiempo.js",
-  "./js/nasa-explorer.js",
+  "./js/kevin/nasa-explorer.js",
   "./js/vendor/phaser.min.js",
 
   // Gráficos del videojuego

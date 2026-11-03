@@ -108,10 +108,10 @@ Registra un cadete temporal, revisa artículos, preguntas, calificación, insign
 La rama `feature/kevin-nasa-explorer` agrega una beta independiente para explorar objetos cercanos a la Tierra con datos abiertos de NASA NeoWs, sin sustituir el videojuego ni la línea del tiempo del equipo.
 
 - Pantalla nueva: `explorador.html`.
-- Lógica aislada: `js/nasa-explorer.js`.
-- Estilos aislados: `css/explorer.css`.
+- Lógica aislada: `js/kevin/nasa-explorer.js`.
+- Estilos aislados: `css/kevin/explorador.css`.
 - Caché NASA integrado cuidadosamente en `sw.js`.
-- Migración MySQL aditiva: `database/migrations/2026-10-29_kevin_nasa_explorer.sql`.
+- Migraciones MySQL aditivas: `api/sql/kevin/`.
 - Revisión de la base de datos: `docs/kevin/REVISION_BASE_DATOS.md`.
 
 La visualización es educativa y no representa órbitas o distancias a escala. Los datos numéricos se obtienen de NASA cuando existe conexión y la PWA conserva una respuesta reciente mediante Cache API.

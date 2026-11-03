@@ -2,15 +2,14 @@
 
 ## Resultado
 
-El archivo `novaquest.sql` contiene 15 tablas y una estructura correcta para los módulos ya planteados por el equipo: usuarios, grupos, misiones, artículos, preguntas, opciones, intentos, progreso, insignias, línea del tiempo, viñetas y caché de API.
+El archivo `novaquest-2.sql` contiene 16 tablas y una estructura correcta para los módulos ya planteados por el equipo: usuarios, grupos, misiones, artículos, preguntas, opciones, intentos, progreso, insignias, línea del tiempo, viñetas y caché de API.
 
-La integración de Kevin no reemplaza estas tablas ni modifica su funcionamiento. Se propone una migración aditiva en `database/migrations/2026-10-29_kevin_nasa_explorer.sql`.
+La integración de Kevin no reemplaza estas tablas ni modifica su funcionamiento. Sus migraciones aditivas se encuentran en `api/sql/kevin/`.
 
 ## Tablas existentes que se reutilizan
 
 | Tabla | Uso posible |
 |---|---|
-| `cache_api` | Guardar temporalmente la respuesta JSON de NASA desde el backend. |
 | `usuarios` | Identificar al estudiante si después se guardan favoritos o progreso. |
 | `misiones` | Crear más adelante una misión educativa relacionada con asteroides. |
 | `preguntas` y `opciones` | Evaluar lo aprendido después de explorar un objeto. |
@@ -23,8 +22,10 @@ La integración de Kevin no reemplaza estas tablas ni modifica su funcionamiento
 
 Por ello se agregan:
 
-1. `objetos_nasa`: identidad, tamaño, magnitud, clasificación y respuesta JSON del objeto.
-2. `aproximaciones_nasa`: fecha, velocidad y distancia de cada encuentro registrado.
+1. `cache_api_nasa`: respuesta JSON temporal del backend, aislada de los otros módulos.
+2. `objetos_nasa`: identidad, tamaño, magnitud, clasificación y respuesta JSON del objeto.
+3. `aproximaciones_nasa`: fecha, velocidad y distancia de cada encuentro registrado.
+4. `push_nasa`: suscripciones de notificaciones exclusivas del explorador.
 
 Esta separación mantiene una relación de uno a muchos y evita tocar las tablas creadas por Miguel y Romel.
 
@@ -38,7 +39,7 @@ La siguiente fase recomendada es crear un endpoint PHP o Node.js que:
 2. Valide y normalice la respuesta.
 3. Inserte o actualice `objetos_nasa`.
 4. Inserte las aproximaciones nuevas.
-5. Use `cache_api` para reducir llamadas repetidas.
+5. Use `cache_api_nasa` para reducir llamadas repetidas sin afectar otros módulos.
 6. Entregue a la PWA únicamente los campos educativos necesarios.
 
 ## Lenguajes y tecnologías identificados
