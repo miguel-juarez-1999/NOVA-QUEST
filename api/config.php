@@ -7,7 +7,8 @@ if (file_exists(__DIR__ . '/config.local.php')) {
 }
 return [
     'host'    => '127.0.0.1',
-    'port'    => 3306,
+    'port'    => 3307,
+    //'port'    => 3307,
     'dbname'  => 'novaquest',
     'user'    => 'root',
     'pass'    => 'root',

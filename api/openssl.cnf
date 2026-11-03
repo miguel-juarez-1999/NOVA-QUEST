@@ -1,0 +1,7 @@
+# Configuración mínima para que PHP en Windows (MAMP) pueda generar
+# las claves de las notificaciones push. Ver api/push.php
+HOME = .
+[ req ]
+default_bits = 2048
+distinguished_name = dn
+[ dn ]

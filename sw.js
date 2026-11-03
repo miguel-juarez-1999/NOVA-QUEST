@@ -14,6 +14,8 @@
 // Resultado: NovaQuest carga rápido y puede abrirse sin conexión.
 // =====================================================================
 
+// Bandeja de respuestas del juego hechas sin conexión (ver sección 5c)
+importScripts("./js/juego/pendientes.js");
 
 // ---------------------------------------------------------------------
 // 1. CONFIGURACIÓN DE LOS CACHÉS
@@ -22,7 +24,7 @@
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v9";
+const CACHE_VERSION = "novaquest-v16";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -58,8 +60,10 @@ const PRECACHE_URLS = [
   "./css/tiempo.css",
   "./js/app.js",
   "./js/api.js",
-  "./js/juego.js",
-  "./js/nave.js",
+  "./js/juego/juego.js",
+  "./js/juego/avisos.js",
+  "./js/juego/pendientes.js",
+  "./js/juego/nave.js",
   "./js/tiempo.js",
   "./js/vendor/phaser.min.js",
 
@@ -255,6 +259,84 @@ self.addEventListener("fetch", (event) => {
           return respuesta;
         })
     )
+  );
+});
+
+
+// ---------------------------------------------------------------------
+// 5b. NOTIFICACIONES PUSH
+// ---------------------------------------------------------------------
+
+// PUSH: llega un aviso del servidor (api/push.php), aunque la página esté
+// cerrada. El mensaje viene cifrado y el navegador ya lo descifró.
+self.addEventListener("push", (event) => {
+  let datos = {};
+  try {
+    datos = event.data ? event.data.json() : {};
+  } catch {
+    datos = { cuerpo: event.data ? event.data.text() : "" };
+  }
+  event.waitUntil(
+    self.registration.showNotification(datos.titulo || "🚀 NovaQuest", {
+      body: datos.cuerpo || "¡Tu viaje en el tiempo te espera!",
+      icon: "./assets/icons/icon-192.png",
+      badge: "./assets/icons/icon-192.png",
+      // Cada apartado manda su propia etiqueta (el juego: "novaquest-juego")
+      // para que sus avisos no reemplacen a los de la línea del tiempo
+      tag: datos.tag || "novaquest-tiempo",
+      renotify: true,
+      lang: "es",
+      data: { url: datos.url || "linea-tiempo.html" },
+    })
+  );
+});
+
+// NOTIFICATIONCLICK: al tocar el aviso se abre (o se enfoca) la página
+// en el momento de la historia que menciona.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const destino = new URL(event.notification.data?.url || "linea-tiempo.html", self.registration.scope).href;
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((ventanas) => {
+      const abierta = ventanas.find((v) => v.url.split("#")[0] === destino.split("#")[0]);
+      if (abierta) {
+        return abierta
+          .navigate(destino)
+          .then((v) => (v || abierta).focus())
+          .catch(() => abierta.focus());
+      }
+      return self.clients.openWindow(destino);
+    })
+  );
+});
+
+
+// ---------------------------------------------------------------------
+// 5c. SINCRONIZACIÓN EN SEGUNDO PLANO (Background Sync)
+// ---------------------------------------------------------------------
+
+// SYNC: el navegador lo dispara cuando vuelve el internet, aunque la página
+// esté cerrada. Envía al servidor las respuestas del juego que se hicieron
+// sin conexión (js/juego/pendientes.js) y avisa cuántos puntos se guardaron.
+self.addEventListener("sync", (event) => {
+  if (event.tag !== "nq-respuestas") return;
+  event.waitUntil(
+    self.NQPendientes.enviar(self.registration.scope).then(async (res) => {
+      if (!res.enviadas) return;
+      // Si la página está abierta, ella lo muestra; si no, una notificación
+      const ventanas = await self.clients.matchAll({ type: "window" });
+      ventanas.forEach((v) => v.postMessage({ tipo: "nq-sincronizado", ...res }));
+      if (ventanas.length || Notification.permission !== "granted") return;
+      const insignias = res.insignias.length ? ` y ${res.insignias.length} insignia(s) nueva(s)` : "";
+      return self.registration.showNotification("📡 ¡Se guardaron tus respuestas!", {
+        body: `Volvió el internet: se guardó lo que jugaste sin conexión (${res.enviadas === 1 ? "1 respuesta" : res.enviadas + " respuestas"}, +${res.puntos} pts${insignias}).`,
+        icon: "./assets/icons/icon-192.png",
+        badge: "./assets/icons/icon-192.png",
+        tag: "novaquest-juego-sync",
+        lang: "es",
+        data: { url: "juego.html#misiones" }
+      });
+    })
   );
 });
 

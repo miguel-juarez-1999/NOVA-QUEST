@@ -9,6 +9,16 @@
 //   GET  r=ranking&codigo_grupo=DEMO01 top 10 del grupo
 //   GET  r=linea_tiempo                etapas con eventos, viñetas y reto
 //   POST r=etapa_progreso              {etapa_id, vinetas_vistas} (X-Token)
+//   POST r=reiniciar_tiempo            borra el progreso de la línea de tiempo (X-Token)
+//   GET  r=push_clave                  clave pública VAPID para suscribirse
+//   POST r=push_suscribir              {endpoint, keys:{p256dh, auth}} (X-Token opcional)
+//   POST r=push_baja                   {endpoint}
+//   POST r=push_prueba                 {endpoint} -> envía un aviso a ese navegador
+//   POST r=jefe                        {mision} -> puntos extra por el jefe final (X-Token)
+//   POST r=juego_avisos_estado         {endpoint} -> ¿este navegador tiene avisos del juego? (X-Token)
+//   POST r=juego_avisos_suscribir      {endpoint, keys:{p256dh, auth}} (X-Token)
+//   POST r=juego_avisos_baja           {endpoint} (X-Token)
+//   POST r=juego_avisos_prueba         {endpoint} -> envía un aviso del juego (X-Token)
 // =====================================================================
 declare(strict_types=1);
 header('Content-Type: application/json; charset=utf-8');
@@ -53,6 +63,9 @@ function darInsignia(PDO $pdo, int $uid, string $codigo): bool {
     return $st->rowCount() > 0;
 }
 
+// Puntos extra por derrotar al jefe final de cada misión (r=jefe)
+const JEFE_PUNTOS = ['NQ-01' => 20, 'NQ-02' => 25, 'NQ-03' => 30, 'NQ-04' => 35, 'NQ-05' => 40, 'NQ-06' => 50];
+
 $recurso = $_GET['r'] ?? '';
 $metodo  = $_SERVER['REQUEST_METHOD'];
 
@@ -72,14 +85,20 @@ try {
             $arts->execute([$m['id']]);
             $m['articulos'] = $arts->fetchAll();
             foreach ($m['articulos'] as &$a) {
-                $pr = db()->prepare('SELECT id, texto, puntos FROM preguntas WHERE articulo_id = ?');
+                $pr = db()->prepare('SELECT id, texto, puntos, explicacion FROM preguntas WHERE articulo_id = ?');
                 $pr->execute([$a['id']]);
                 $a['preguntas'] = $pr->fetchAll();
                 foreach ($a['preguntas'] as &$p) {
                     // No se envía es_correcta: el servidor es quien califica
-                    $op = db()->prepare('SELECT id, texto FROM opciones WHERE pregunta_id = ?');
+                    $op = db()->prepare('SELECT id, texto, es_correcta FROM opciones WHERE pregunta_id = ?');
                     $op->execute([$p['id']]);
-                    $p['opciones'] = $op->fetchAll();
+                    $ops = $op->fetchAll();
+                    // Para jugar sin conexión: sha256(sal:id_correcta). El navegador puede
+                    // comprobar una respuesta, pero no ve cuál es la correcta escrita.
+                    $correcta = array_values(array_filter($ops, fn($o) => (int)$o['es_correcta'] === 1))[0]['id'] ?? 0;
+                    $p['sal']   = bin2hex(random_bytes(8));
+                    $p['clave'] = hash('sha256', $p['sal'] . ':' . $correcta);
+                    $p['opciones'] = array_map(fn($o) => ['id' => $o['id'], 'texto' => $o['texto']], $ops);
                 }
                 unset($p);
             }
@@ -109,13 +128,15 @@ try {
             if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
             $u = usuarioActual();
             $opcionId = (int)(cuerpo()['opcion_id'] ?? 0);
-            $st = db()->prepare('SELECT o.id, o.pregunta_id, o.es_correcta, p.puntos, p.explicacion, p.etapa_id, a.mision_id
+            $st = db()->prepare('SELECT o.id, o.pregunta_id, o.es_correcta, p.puntos, p.explicacion, p.etapa_id, a.mision_id, mi.activa
                                  FROM opciones o
                                  JOIN preguntas p ON p.id = o.pregunta_id
                                  LEFT JOIN articulos a ON a.id = p.articulo_id
+                                 LEFT JOIN misiones mi ON mi.id = a.mision_id
                                  WHERE o.id = ?');
             $st->execute([$opcionId]);
             $o = $st->fetch() ?: salida(404, ['error' => 'Esa opción no existe']);
+            if ($o['mision_id'] !== null && !(int)$o['activa']) salida(403, ['error' => 'Esa misión no está disponible']);
 
             // La pregunta es de una misión (videojuego) o de una etapa (línea de tiempo)
             if ($o['mision_id'] !== null) {
@@ -162,9 +183,35 @@ try {
                     $n = $pdo->prepare("SELECT COUNT(*) FROM progreso WHERE usuario_id = ? AND estado = 'completada'");
                     $n->execute([$u['id']]);
                     if ((int)$n->fetchColumn() >= 3 && darInsignia($pdo, (int)$u['id'], 'explorador')) $insignias[] = 'explorador';
+                } else {
+                    // ¿Ya resolvió los retos de todas las etapas que tienen reto?
+                    $hechas = $pdo->prepare("SELECT COUNT(*) FROM progreso_etapas WHERE usuario_id = ? AND estado = 'completada'");
+                    $hechas->execute([$u['id']]);
+                    $conReto = (int)$pdo->query('SELECT COUNT(DISTINCT etapa_id) FROM preguntas WHERE etapa_id IS NOT NULL')->fetchColumn();
+                    if ((int)$hechas->fetchColumn() >= $conReto && darInsignia($pdo, (int)$u['id'], 'viajero_tiempo')) $insignias[] = 'viajero_tiempo';
                 }
             }
+            // Insignia "Científico": sus últimas 10 respuestas del juego fueron correctas
+            if ($tabla === 'progreso' && $o['es_correcta']) {
+                $racha = $pdo->prepare('SELECT COUNT(*) AS n, COALESCE(SUM(correcta), 0) AS ok FROM (
+                                          SELECT i.correcta FROM intentos i JOIN preguntas p ON p.id = i.pregunta_id
+                                          WHERE i.usuario_id = ? AND p.articulo_id IS NOT NULL
+                                          ORDER BY i.id DESC LIMIT 10) ultimas');
+                $racha->execute([$u['id']]);
+                $r = $racha->fetch();
+                if ((int)$r['n'] === 10 && (int)$r['ok'] === 10 && darInsignia($pdo, (int)$u['id'], 'cientifico')) $insignias[] = 'cientifico';
+            }
             $pdo->commit();
+            // Avisos del juego: si rebasó a alguien de su grupo, se le avisa.
+            // Un fallo aquí nunca debe romper la respuesta del disparo.
+            if ($suma > 0 && $tabla === 'progreso') {
+                try {
+                    require_once __DIR__ . '/juego/avisos.php';
+                    pushJuegoRanking($pdo, $u, $suma);
+                } catch (Throwable $e) {
+                    error_log('NovaQuest push juego: ' . $e->getMessage());
+                }
+            }
             salida(200, ['correcta' => (bool)$o['es_correcta'], 'puntos_ganados' => $suma,
                          'completada' => $completada, 'insignias_nuevas' => $insignias,
                          // El dato curioso solo se revela al acertar (no delata la respuesta)
@@ -242,6 +289,156 @@ try {
             db()->prepare("INSERT INTO progreso_etapas (usuario_id, etapa_id, estado, vinetas_vistas) VALUES (?,?, 'en_curso', ?)
                            ON DUPLICATE KEY UPDATE vinetas_vistas = GREATEST(vinetas_vistas, VALUES(vinetas_vistas))")
                 ->execute([$u['id'], $etapaId, $vistas]);
+            salida(200, ['ok' => true]);
+
+        case 'reiniciar_tiempo':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            $pdo = db();
+            $pdo->beginTransaction();
+            // Solo el progreso de la línea de tiempo; las misiones no se tocan
+            $pdo->prepare('DELETE FROM progreso_etapas WHERE usuario_id = ?')->execute([$u['id']]);
+            $pdo->prepare('DELETE i FROM intentos i JOIN preguntas p ON p.id = i.pregunta_id
+                           WHERE i.usuario_id = ? AND p.etapa_id IS NOT NULL')->execute([$u['id']]);
+            $pdo->prepare("DELETE ui FROM usuario_insignias ui JOIN insignias ins ON ins.id = ui.insignia_id
+                           WHERE ui.usuario_id = ? AND ins.codigo = 'viajero_tiempo'")->execute([$u['id']]);
+            $pdo->commit();
+            salida(200, ['ok' => true]);
+
+        case 'push_clave':
+            require_once __DIR__ . '/push.php';
+            salida(200, ['clave' => pushClaves()['publica']]);
+
+        case 'push_suscribir':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $b = cuerpo();
+            $endpoint = (string)($b['endpoint'] ?? '');
+            $p256dh   = (string)($b['keys']['p256dh'] ?? '');
+            $auth     = (string)($b['keys']['auth'] ?? '');
+            if (!preg_match('#^https://[^\s]{10,590}$#', $endpoint)
+                || !preg_match('/^[A-Za-z0-9_-]{80,100}$/', $p256dh)
+                || !preg_match('/^[A-Za-z0-9_-]{16,30}$/', $auth)) salida(422, ['error' => 'Suscripción inválida']);
+            // El token es opcional: los avisos también sirven sin cadete
+            $uid = null;
+            if (isset($_SERVER['HTTP_X_TOKEN'])) $uid = (int)usuarioActual()['id'];
+            db()->prepare('INSERT INTO push_suscripciones (usuario_id, endpoint_hash, endpoint, p256dh, auth) VALUES (?,?,?,?,?)
+                           ON DUPLICATE KEY UPDATE usuario_id = COALESCE(VALUES(usuario_id), usuario_id),
+                                                   p256dh = VALUES(p256dh), auth = VALUES(auth)')
+                ->execute([$uid, hash('sha256', $endpoint), $endpoint, $p256dh, $auth]);
+            salida(201, ['ok' => true]);
+
+        case 'push_baja':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            db()->prepare('DELETE FROM push_suscripciones WHERE endpoint_hash = ?')
+                ->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? ''))]);
+            salida(200, ['ok' => true]);
+
+        case 'push_prueba':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            require_once __DIR__ . '/push.php';
+            $st = db()->prepare('SELECT id, endpoint, p256dh, auth, TIMESTAMPDIFF(SECOND, ultimo_envio, NOW()) AS hace
+                                 FROM push_suscripciones WHERE endpoint_hash = ?');
+            $st->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? ''))]);
+            $sub = $st->fetch() ?: salida(404, ['error' => 'Primero activa los avisos']);
+            // Máximo un aviso de prueba cada 20 segundos por navegador
+            if ($sub['hace'] !== null && (int)$sub['hace'] < 20) {
+                salida(429, ['error' => 'Espera unos segundos antes de pedir otro aviso']);
+            }
+            $codigo = pushEnviar($sub, pushDatoCurioso(db()));
+            if ($codigo === 404 || $codigo === 410) {
+                db()->prepare('DELETE FROM push_suscripciones WHERE id = ?')->execute([$sub['id']]);
+                salida(410, ['error' => 'Tu suscripción venció. Vuelve a activar los avisos.']);
+            }
+            if ($codigo < 200 || $codigo >= 300) salida(502, ['error' => 'El servicio de avisos no respondió (código ' . $codigo . ')']);
+            db()->prepare('UPDATE push_suscripciones SET ultimo_envio = NOW() WHERE id = ?')->execute([$sub['id']]);
+            salida(200, ['ok' => true]);
+
+        // ----- Jefe final del videojuego: puntos extra -----
+        case 'jefe':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            $st = db()->prepare('SELECT id, activa FROM misiones WHERE codigo = ?');
+            $st->execute([(string)(cuerpo()['mision'] ?? '')]);
+            $mi = $st->fetch() ?: salida(404, ['error' => 'Misión no encontrada']);
+            if (!(int)$mi['activa']) salida(403, ['error' => 'Esa misión no está disponible']);
+            // El jefe sale después de la última pregunta: la misión debe estar completada
+            $st = db()->prepare("SELECT 1 FROM progreso WHERE usuario_id = ? AND mision_id = ? AND estado = 'completada'");
+            $st->execute([$u['id'], $mi['id']]);
+            if (!$st->fetch()) salida(409, ['error' => 'Primero responde todas las preguntas de la misión']);
+            // Más difícil la misión, más puntos (una sola vez por misión)
+            $bono = JEFE_PUNTOS[(string)(cuerpo()['mision'] ?? '')] ?? 20;
+            $pdo = db();
+            $pdo->beginTransaction();
+            $ins = $pdo->prepare('INSERT IGNORE INTO jefes_derrotados (usuario_id, mision_id, puntos) VALUES (?, ?, ?)');
+            $ins->execute([$u['id'], $mi['id'], $bono]);
+            $primera = $ins->rowCount() > 0;
+            if ($primera) {
+                $pdo->prepare('UPDATE progreso SET puntos = puntos + ? WHERE usuario_id = ? AND mision_id = ?')
+                    ->execute([$bono, $u['id'], $mi['id']]);
+            }
+            $pdo->commit();
+            if ($primera) {
+                try {
+                    require_once __DIR__ . '/juego/avisos.php';
+                    pushJuegoRanking($pdo, $u, $bono);
+                } catch (Throwable $e) {
+                    error_log('NovaQuest push juego: ' . $e->getMessage());
+                }
+            }
+            salida(200, ['puntos_ganados' => $primera ? $bono : 0, 'primera_vez' => $primera]);
+
+        // ----- Avisos del videojuego (tabla push_juego, ver api/juego/avisos.php) -----
+        case 'juego_avisos_estado':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            $st = db()->prepare('SELECT 1 FROM push_juego WHERE endpoint_hash = ? AND usuario_id = ?');
+            $st->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? '')), $u['id']]);
+            salida(200, ['activo' => (bool)$st->fetch()]);
+
+        case 'juego_avisos_suscribir':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            require_once __DIR__ . '/juego/avisos.php';
+            $u = usuarioActual();
+            $b = cuerpo();
+            $endpoint = (string)($b['endpoint'] ?? '');
+            $p256dh   = (string)($b['keys']['p256dh'] ?? '');
+            $auth     = (string)($b['keys']['auth'] ?? '');
+            if (!pushJuegoEndpointValido($endpoint)
+                || !preg_match('/^[A-Za-z0-9_-]{80,100}$/', $p256dh)
+                || !preg_match('/^[A-Za-z0-9_-]{16,30}$/', $auth)) salida(422, ['error' => 'Suscripción inválida']);
+            // Si el navegador ya era de otro cadete, ahora es del que tiene la sesión
+            db()->prepare('INSERT INTO push_juego (usuario_id, endpoint_hash, endpoint, p256dh, auth) VALUES (?,?,?,?,?)
+                           ON DUPLICATE KEY UPDATE usuario_id = VALUES(usuario_id), p256dh = VALUES(p256dh), auth = VALUES(auth)')
+                ->execute([$u['id'], hash('sha256', $endpoint), $endpoint, $p256dh, $auth]);
+            salida(201, ['ok' => true]);
+
+        case 'juego_avisos_baja':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            db()->prepare('DELETE FROM push_juego WHERE endpoint_hash = ? AND usuario_id = ?')
+                ->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? '')), $u['id']]);
+            salida(200, ['ok' => true]);
+
+        case 'juego_avisos_prueba':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            require_once __DIR__ . '/juego/avisos.php';
+            $u = usuarioActual();
+            $st = db()->prepare('SELECT id, endpoint, p256dh, auth, TIMESTAMPDIFF(SECOND, ultimo_envio, NOW()) AS hace
+                                 FROM push_juego WHERE endpoint_hash = ? AND usuario_id = ?');
+            $st->execute([hash('sha256', (string)(cuerpo()['endpoint'] ?? '')), $u['id']]);
+            $sub = $st->fetch() ?: salida(404, ['error' => 'Primero activa los avisos del juego']);
+            if ($sub['hace'] !== null && (int)$sub['hace'] < 20) {
+                salida(429, ['error' => 'Espera unos segundos antes de pedir otro aviso']);
+            }
+            // Si tiene una misión a medias se le recuerda; si no, un aviso de bienvenida
+            $aviso = pushJuegoRecordatorio(db(), (int)$u['id']) ?? [
+                'titulo' => '🎮 ¡Hola, ' . $u['apodo'] . '!',
+                'cuerpo' => 'Así te avisaremos cuando alguien te rebase en el ranking o dejes una misión a medias.',
+                'url'    => 'juego.html#misiones',
+            ];
+            $codigo = pushJuegoEnviarA(db(), $sub, $aviso);
+            if ($codigo === 404 || $codigo === 410) salida(410, ['error' => 'Tu suscripción venció. Vuelve a activar los avisos.']);
+            if ($codigo < 200 || $codigo >= 300) salida(502, ['error' => 'El servicio de avisos no respondió (código ' . $codigo . ')']);
             salida(200, ['ok' => true]);
 
         default:
