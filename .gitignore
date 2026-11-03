@@ -2,5 +2,6 @@
 api/*.local.php
 node_modules/
 supabase/functions/.env
+supabase/.temp/
 .env
 .env.local
