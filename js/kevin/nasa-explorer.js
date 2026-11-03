@@ -53,9 +53,25 @@ if (canvas) {
   const belt = Array.from({ length: 1100 }, (_, i) => ({ a: 2.05 + fract(Math.sin(i * 12.93) * 8931.7) * 1.35, angle: fract(Math.sin(i * 42.1 + 7) * 991.3) * Math.PI * 2, z: .35 + fract(Math.sin(i * 4.31) * 414.2) * .5, bright: i % 79 === 0 }));
 
   function fract(value) { return value - Math.floor(value); }
-  function dateKey() { return new Date().toLocaleDateString("en-CA"); }
+  function dateKey() {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  }
   function api(route, params = {}) { const url = new URL(apiUrl); url.searchParams.set("r", route); Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v)); return url.href; }
-  async function json(url, options = {}) { const response = await fetch(url, { headers: { Accept: "application/json", ...(options.headers || {}) }, ...options }); const payload = await response.json().catch(() => ({})); if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`); return payload; }
+  async function json(url, options = {}) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), options.timeout || 10000);
+    try {
+      const { timeout: _timeout, ...fetchOptions } = options;
+      const response = await fetch(url, { headers: { Accept: "application/json", ...(options.headers || {}) }, ...fetchOptions, signal: controller.signal });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      return payload;
+    } catch (error) {
+      if (error.name === "AbortError") throw new Error("La consulta superó el tiempo de espera");
+      throw error;
+    } finally { clearTimeout(timeout); }
+  }
   function setStatus(type, label) { statusNode.classList.remove("api-live", "api-error"); statusNode.classList.add(type); statusNode.lastChild.textContent = ` ${label}`; }
 
   function normalize(neo) {
@@ -78,23 +94,31 @@ if (canvas) {
   }
 
   async function addOrbitalData(objects) {
-    await Promise.all(objects.slice(0, 8).map(async (object, index) => {
-      try { object.orbit = parseOrbit(await json(api("nasa_orbit", { id: object.id })), object, index); }
+    let official = 0;
+    await Promise.all(objects.map(async (object, index) => {
+      try { object.orbit = parseOrbit(await json(api("nasa_orbit", { id: object.id }), { timeout: 4500 }), object, index); if (object.orbit.source === "NASA SBDB") official += 1; }
       catch { object.orbit = pseudoOrbit(object, index); }
     }));
+    return official;
   }
 
   async function loadData(force = false) {
     refreshButton.disabled = true; message.textContent = "Consultando NASA NeoWs y JPL SBDB…"; setStatus("", "Consultando NASA");
     try {
       const payload = await json(api("nasa_feed", { fecha: dateKey(), forzar: force ? 1 : 0 }), { cache: force ? "reload" : "default" });
-      const objects = Object.values(payload.near_earth_objects || {}).flat().map(normalize).sort((a, b) => a.distance - b.distance).slice(0, 8);
+      const objects = Object.values(payload.near_earth_objects || {}).flat().map(normalize).sort((a, b) => a.distance - b.distance).slice(0, 5);
       if (!objects.length) throw new Error("NASA no devolvió objetos para hoy");
-      await addOrbitalData(objects);
+      objects.forEach((object, index) => { object.orbit = pseudoOrbit(object, index); });
       state.objects = objects; state.selected = 0; renderList(); select(0, false); setStatus("api-live", "NASA conectada");
       const source = payload._novaquest?.fuente === "cache_api_nasa" ? "caché segura" : "NASA en tiempo real";
-      message.textContent = `${objects.length} objetos obtenidos desde ${source}. Órbitas enriquecidas con NASA/JPL SBDB.`;
+      message.textContent = `${objects.length} objetos obtenidos desde ${source}. Preparando sus trayectorias orbitales…`;
       updateNode.textContent = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
+      addOrbitalData(objects).then((official) => {
+        select(state.selected, false);
+        message.textContent = official
+          ? `${objects.length} objetos NASA; ${official} trayectorias usan elementos orbitales de JPL/SBDB.`
+          : `${objects.length} objetos NASA cargados. Las trayectorias se muestran como aproximación educativa.`;
+      });
     } catch (error) {
       state.objects = FALLBACK.map((o, i) => ({ ...o, orbit: pseudoOrbit(o, i) })); renderList(); select(0, false); setStatus("api-error", "Modo de respaldo"); message.textContent = `La conexión no respondió (${error.message}). El visor continúa con datos educativos almacenados.`;
     } finally { refreshButton.disabled = false; }
