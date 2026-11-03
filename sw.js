@@ -24,7 +24,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v21-kevin-presentacion";
+const CACHE_VERSION = "novaquest-v22-kevin-orbita";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -64,6 +64,7 @@ const PRECACHE_URLS = [
   "./css/juego.css",
   "./css/tiempo.css",
   "./css/kevin/explorador.css",
+  "./css/kevin/portal-orbita.css",
   "./js/app.js",
   "./js/api.js",
   "./js/juego/juego.js",
@@ -300,8 +301,8 @@ self.addEventListener("push", (event) => {
   } catch {
     datos = { cuerpo: event.data ? event.data.text() : "" };
   }
-  event.waitUntil(
-    self.registration.showNotification(datos.titulo || "🚀 NovaQuest", {
+  event.waitUntil((async () => {
+    await self.registration.showNotification(datos.titulo || "🚀 NovaQuest", {
       body: datos.cuerpo || "¡Tu viaje en el tiempo te espera!",
       icon: "./assets/icons/icon-192.png",
       badge: "./assets/icons/icon-192.png",
@@ -309,10 +310,21 @@ self.addEventListener("push", (event) => {
       // para que sus avisos no reemplacen a los de la línea del tiempo
       tag: datos.tag || "novaquest-tiempo",
       renotify: true,
+      silent: false,
+      requireInteraction: true,
       lang: "es",
       data: { url: datos.url || "linea-tiempo.html" },
-    })
-  );
+    });
+
+    // APORTACIÓN KEVIN: confirma a cualquier ventana abierta que el mensaje
+    // sí llegó al Service Worker. Así la interfaz diferencia entre
+    // "el servidor aceptó el envío" y "el dispositivo recibió el Push".
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    windows.forEach((client) => client.postMessage({
+      type: "novaquest-push-recibido",
+      tag: datos.tag || "novaquest-tiempo",
+    }));
+  })());
 });
 
 // NOTIFICATIONCLICK: al tocar el aviso se abre (o se enfoca) la página

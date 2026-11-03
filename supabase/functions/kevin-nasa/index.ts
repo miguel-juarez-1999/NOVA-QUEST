@@ -189,6 +189,40 @@ Deno.serve(async (request) => {
       return json(request, 200, { ...payload, _novaquest: { fuente: "nasa_api", guardado_en: "cache_api_nasa" } });
     }
 
+    // APORTACIÓN KEVIN: elementos orbitales oficiales de JPL/SBDB.
+    // NeoWs aporta los acercamientos; SBDB agrega semieje mayor,
+    // excentricidad e inclinación para dibujar una trayectoria coherente.
+    if (route === "nasa_orbit") {
+      if (request.method !== "GET") return json(request, 405, { error: "Usa GET." });
+      const id = url.searchParams.get("id") || "";
+      if (!/^\d{4,12}$/.test(id)) return json(request, 400, { error: "Identificador NASA inválido." });
+      const cacheKey = `sbdb-orbit:${id}`;
+      const { data: cached, error: cacheReadError } = await supabase
+        .from("cache_api_nasa")
+        .select("respuesta, consultado_en")
+        .eq("clave", cacheKey)
+        .gt("expira_en", new Date().toISOString())
+        .maybeSingle();
+      if (cacheReadError) throw cacheReadError;
+      if (cached) return json(request, 200, { ...cached.respuesta, _novaquest: { fuente: "cache_api_nasa", consultado_en: cached.consultado_en } });
+
+      const sbdbUrl = new URL("https://ssd-api.jpl.nasa.gov/sbdb.api");
+      sbdbUrl.searchParams.set("sstr", id);
+      sbdbUrl.searchParams.set("phys-par", "1");
+      const sbdbResponse = await fetch(sbdbUrl);
+      if (!sbdbResponse.ok) throw new Error(`JPL SBDB respondió HTTP ${sbdbResponse.status}.`);
+      const payload = await sbdbResponse.json();
+      const now = new Date();
+      const { error: cacheWriteError } = await supabase.from("cache_api_nasa").upsert({
+        clave: cacheKey,
+        respuesta: payload,
+        consultado_en: now.toISOString(),
+        expira_en: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }, { onConflict: "clave" });
+      if (cacheWriteError) throw cacheWriteError;
+      return json(request, 200, { ...payload, _novaquest: { fuente: "jpl_sbdb", guardado_en: "cache_api_nasa" } });
+    }
+
     if (route === "push_clave") {
       if (request.method !== "GET") return json(request, 405, { error: "Usa GET." });
       return json(request, 200, { clave: requiredSecret("VAPID_PUBLIC_KEY") });
@@ -238,7 +272,7 @@ Deno.serve(async (request) => {
           cuerpo: "Tu explorador está conectado. Toca para revisar los objetos cercanos a la Tierra.",
           url: "explorador.html#datos",
           tag: "novaquest-kevin-nasa",
-        }));
+        }), { TTL: 60, urgency: "high" });
       } catch (pushError: any) {
         if ([404, 410].includes(pushError.statusCode)) {
           await supabase.from("push_nasa").delete().eq("id", subscription.id);
