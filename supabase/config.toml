@@ -1,0 +1,4 @@
+project_id = "novaquest-kevin"
+
+[functions.kevin-nasa]
+verify_jwt = false

@@ -31,16 +31,18 @@ Esta separación mantiene una relación de uno a muchos y evita tocar las tablas
 
 ## Estado de la beta
 
-La pantalla `explorador.html` consume NASA directamente desde JavaScript para demostrar la integración visual. La migración SQL deja preparada la base, pero la persistencia real requiere un backend HTTPS. GitHub Pages puede publicar HTML, CSS y JavaScript, pero no ejecuta PHP ni se conecta de forma segura a MySQL.
+La persistencia local ya funciona mediante `api/kevin/index.php`: la primera consulta descarga NASA NeoWs y la segunda reutiliza `cache_api_nasa`. Los objetos y sus aproximaciones se normalizan en tablas separadas. La computadora también quedó registrada en `push_nasa` y recibió un Web Push real desde el backend local.
 
-La siguiente fase recomendada es crear un endpoint PHP o Node.js que:
+Para la versión pública se preparó una Edge Function independiente en `supabase/functions/kevin-nasa/` y la migración PostgreSQL equivalente. GitHub Pages seguirá publicando el frontend; Supabase alojará los datos y el código seguro que no debe quedar en el navegador.
+
+El backend implementado:
 
 1. Consulte NASA con una llave privada.
 2. Valide y normalice la respuesta.
 3. Inserte o actualice `objetos_nasa`.
 4. Inserte las aproximaciones nuevas.
 5. Use `cache_api_nasa` para reducir llamadas repetidas sin afectar otros módulos.
-6. Entregue a la PWA únicamente los campos educativos necesarios.
+6. Entrega a la PWA la respuesta educativa y registra suscripciones Web Push.
 
 ## Lenguajes y tecnologías identificados
 
@@ -49,4 +51,6 @@ La siguiente fase recomendada es crear un endpoint PHP o Node.js que:
 - JavaScript: interacción, PWA, Canvas, NASA NeoWs, caché y notificaciones locales.
 - JSON: `manifest.json` y respuestas de NASA.
 - SQL/MySQL: modelo de datos y migraciones.
-- PHP o Node.js: opción futura para el backend seguro bajo HTTPS.
+- PHP 8 + PDO: backend local compatible con MySQL/MariaDB del equipo.
+- TypeScript + Supabase Edge Functions: backend público HTTPS.
+- PostgreSQL/Supabase: base pública aislada para pruebas en computadora e iPhone.

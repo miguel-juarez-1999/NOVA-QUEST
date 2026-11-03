@@ -1,3 +1,6 @@
 # Configuración y claves locales (no se suben)
 api/*.local.php
 node_modules/
+supabase/functions/.env
+.env
+.env.local

@@ -15,6 +15,15 @@ if (canvas) {
   const dataMessage = document.querySelector("[data-data-message]");
   const refreshButton = document.querySelector("[data-refresh-data]");
   const notifyButton = document.querySelector("[data-notify]");
+  const testNotifyButton = document.querySelector("[data-test-notify]");
+
+  // La URL del backend nunca contiene contraseñas. En local apunta al PHP
+  // de este repositorio; en GitHub Pages se asignará la URL HTTPS del hosting.
+  const kevinConfig = window.NQ_KEVIN_CONFIG || {};
+  const isLocal = ["localhost", "127.0.0.1"].includes(window.location.hostname);
+  const apiBaseUrl = isLocal
+    ? new URL(kevinConfig.localApiPath || "api/kevin/index.php", document.baseURI).href
+    : (kevinConfig.productionApiUrl || "");
 
   const detail = {
     sequence: document.querySelector("[data-object-sequence]"),
@@ -110,21 +119,47 @@ if (canvas) {
     };
   }
 
+  function endpointApi(route, params = {}) {
+    if (!apiBaseUrl) return "";
+    const url = new URL(apiBaseUrl);
+    url.searchParams.set("r", route);
+    Object.entries(params).forEach(([key, value]) => url.searchParams.set(key, String(value)));
+    return url.href;
+  }
+
+  async function fetchJson(url, options = {}) {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json", ...(options.headers || {}) },
+      ...options
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(payload.error || `El servidor respondió ${response.status}`);
+    return payload;
+  }
+
   async function loadNasaData({ force = false } = {}) {
     const date = localDateKey();
-    const endpoint = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${date}&end_date=${date}&api_key=DEMO_KEY`;
+    const backendEndpoint = endpointApi("nasa_feed", { fecha: date, forzar: force ? 1 : 0 });
+    const nasaEndpoint = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${date}&end_date=${date}&api_key=DEMO_KEY`;
     refreshButton.disabled = true;
     dataMessage.textContent = "Consultando NASA NeoWs…";
     setStatus("api-cache", "Consultando NASA");
 
     try {
-      const response = await fetch(endpoint, {
-        headers: { Accept: "application/json" },
-        cache: force ? "reload" : "default"
-      });
-      if (!response.ok) throw new Error(`NASA respondió ${response.status}`);
-
-      const payload = await response.json();
+      // Con backend activo, NASA se consulta desde PHP y su respuesta se
+      // persiste en cache_api_nasa, objetos_nasa y aproximaciones_nasa.
+      // La consulta directa se conserva como respaldo durante el despliegue.
+      let payload;
+      let sourceText;
+      if (backendEndpoint) {
+        payload = await fetchJson(backendEndpoint, { cache: force ? "reload" : "default" });
+        sourceText = payload._novaquest?.fuente === "cache_api_nasa"
+          ? "la caché de base de datos cache_api_nasa"
+          : "NASA NeoWs mediante el backend seguro";
+      } else {
+        payload = await fetchJson(nasaEndpoint, { cache: force ? "reload" : "default" });
+        sourceText = "NASA NeoWs (conexión directa temporal)";
+      }
       const objects = Object.values(payload.near_earth_objects || {})
         .flat()
         .map(normalizeNeo)
@@ -138,7 +173,7 @@ if (canvas) {
       renderObjectList();
       selectObject(0);
       setStatus("api-live", "NASA conectada");
-      dataMessage.textContent = `${objects.length} objetos cargados desde NASA NeoWs para ${date}. La respuesta también queda disponible en la caché de la PWA.`;
+      dataMessage.textContent = `${objects.length} objetos cargados desde ${sourceText} para ${date}. La respuesta también queda disponible en la caché de la PWA.`;
       updateTime.textContent = `Actualizado ${new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}`;
     } catch (error) {
       state.objects = FALLBACK_OBJECTS;
@@ -390,9 +425,30 @@ if (canvas) {
   });
 
   refreshButton.addEventListener("click", () => loadNasaData({ force: true }));
-  notifyButton.addEventListener("click", async () => {
+
+  function base64UrlToUint8Array(base64Url) {
+    const padding = "=".repeat((4 - (base64Url.length % 4)) % 4);
+    const base64 = (base64Url + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const raw = atob(base64);
+    return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
+  }
+
+  async function currentSubscription() {
+    const registration = await navigator.serviceWorker.ready;
+    return registration.pushManager.getSubscription();
+  }
+
+  async function activateNotifications() {
     if (!("Notification" in window) || !("serviceWorker" in navigator)) {
       dataMessage.textContent = "Este navegador no permite notificaciones de la PWA.";
+      return;
+    }
+    if (!("PushManager" in window)) {
+      dataMessage.textContent = "Este navegador no ofrece Web Push. En iPhone abre NovaQuest desde el icono agregado a la pantalla de inicio.";
+      return;
+    }
+    if (!apiBaseUrl) {
+      dataMessage.textContent = "El backend público todavía no está configurado; las notificaciones reales se activarán al publicar la base de datos y la función HTTPS.";
       return;
     }
     const permission = await Notification.requestPermission();
@@ -401,15 +457,62 @@ if (canvas) {
       return;
     }
     const registration = await navigator.serviceWorker.ready;
-    await registration.showNotification("NovaQuest · Radar NASA", {
-      body: "La beta de NQ Orbit Explorer está lista para consultar objetos cercanos a la Tierra.",
-      icon: "assets/icons/icon-192.png",
-      badge: "assets/icons/icon-192.png",
-      tag: "novaquest-kevin-nasa",
-      data: { url: "./explorador.html" }
+    const { clave } = await fetchJson(endpointApi("push_clave"));
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: base64UrlToUint8Array(clave)
+      });
+    }
+    await fetchJson(endpointApi("push_suscribir"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(subscription.toJSON())
     });
-    dataMessage.textContent = "Aviso local enviado. El push remoto requerirá un servicio backend con suscripciones Web Push.";
-  });
+    notifyButton.textContent = "Notificaciones activas";
+    notifyButton.disabled = true;
+    testNotifyButton.hidden = false;
+    dataMessage.textContent = "Este dispositivo quedó registrado en push_nasa. Ya puede recibir avisos aunque NovaQuest no esté abierta.";
+  }
+
+  async function sendTestNotification() {
+    const subscription = await currentSubscription();
+    if (!subscription) {
+      dataMessage.textContent = "Primero activa las notificaciones en este dispositivo.";
+      return;
+    }
+    testNotifyButton.disabled = true;
+    try {
+      await fetchJson(endpointApi("push_prueba"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint: subscription.endpoint })
+      });
+      dataMessage.textContent = "El servidor envió una notificación Web Push a este dispositivo.";
+    } catch (error) {
+      dataMessage.textContent = `No se pudo enviar la prueba: ${error.message}`;
+    } finally {
+      testNotifyButton.disabled = false;
+    }
+  }
+
+  notifyButton.addEventListener("click", () => activateNotifications().catch((error) => {
+    dataMessage.textContent = `No se pudo activar Web Push: ${error.message}`;
+  }));
+  testNotifyButton.addEventListener("click", sendTestNotification);
+
+  if ("serviceWorker" in navigator && "PushManager" in window && apiBaseUrl) {
+    navigator.serviceWorker.ready
+      .then(() => currentSubscription())
+      .then((subscription) => {
+        if (!subscription) return;
+        notifyButton.textContent = "Notificaciones activas";
+        notifyButton.disabled = true;
+        testNotifyButton.hidden = false;
+      })
+      .catch(() => {});
+  }
 
   new ResizeObserver(resizeCanvas).observe(canvasShell);
   renderObjectList();

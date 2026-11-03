@@ -24,7 +24,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v18-kevin-structure";
+const CACHE_VERSION = "novaquest-v19-kevin-nasa-backend";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -71,6 +71,7 @@ const PRECACHE_URLS = [
   "./js/juego/pendientes.js",
   "./js/juego/nave.js",
   "./js/tiempo.js",
+  "./js/kevin/config.js",
   "./js/kevin/nasa-explorer.js",
   "./js/vendor/phaser.min.js",
 
@@ -190,7 +191,15 @@ self.addEventListener("fetch", (event) => {
   // deja pasar a la red.
   if (url.pathname.endsWith(".mp4") || request.headers.has("range")) return;
 
-  // --- Caso API: datos del backend (PHP + MySQL) ---
+  // --- Caso API Kevin/NASA: backend PHP propio, incluso si está alojado
+  // en un dominio HTTPS distinto de GitHub Pages. RED PRIMERO permite datos
+  // recientes; la última respuesta válida queda disponible sin conexión. ---
+  if (url.pathname.includes("/api/kevin/index.php") || url.pathname.includes("/functions/v1/kevin-nasa")) {
+    event.respondWith(networkFirstApi(request, NASA_CACHE));
+    return;
+  }
+
+  // --- Caso API: datos del backend compartido (PHP + MySQL) ---
   // RED PRIMERO: los datos deben ser frescos. Si no hay internet,
   // se entrega la última respuesta guardada.
   if (url.origin === self.location.origin && url.pathname.includes("/api/")) {
@@ -434,6 +443,24 @@ async function nasaNetworkFirst(request) {
     return cachedResponse || response;
   } catch (error) {
     const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+}
+
+// APORTACIÓN KEVIN: estrategia reutilizable para el backend NASA.
+// A diferencia de la consulta directa a NASA, esta respuesta ya pasó por
+// cache_api_nasa y por la normalización MySQL del servidor.
+async function networkFirstApi(request, nombreCache) {
+  const cache = await caches.open(nombreCache);
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.status === 200) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cachedResponse = await cache.match(request, { ignoreSearch: false });
     if (cachedResponse) return cachedResponse;
     throw error;
   }

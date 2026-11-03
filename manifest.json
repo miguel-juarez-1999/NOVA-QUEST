@@ -37,10 +37,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Archivo de misiones",
-      "short_name": "Misiones",
-      "description": "Ir directo al catálogo de misiones",
-      "url": "./misiones.html#catalogo",
+      "name": "Selector interactivo",
+      "short_name": "Selector",
+      "description": "Elegir una experiencia educativa de NovaQuest",
+      "url": "./misiones.html#selector",
       "icons": [
         {
           "src": "assets/icons/icon-192.png",
