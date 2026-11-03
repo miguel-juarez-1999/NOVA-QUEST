@@ -11,6 +11,49 @@
   const guardar = (clave, valor) => { try { localStorage.setItem(clave, valor); } catch { /* sin almacenamiento */ } };
   const borrarSesion = () => { try { ["nq_token", "nq_apodo", "nq_avatar", "nq_grupo"].forEach((k) => localStorage.removeItem(k)); } catch { /* nada */ } };
 
+  // Copia revuelta de una lista (Fisher-Yates)
+  function revolver(lista) {
+    const copia = [...lista];
+    for (let i = copia.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [copia[i], copia[j]] = [copia[j], copia[i]];
+    }
+    return copia;
+  }
+
+  // Convierte una lectura en un artículo: "## " subtítulo, "- " lista, "> " recuadro
+  // "¿Sabías que...?", **negritas** y una línea en blanco entre párrafos.
+  // Todo entra como texto (sin innerHTML), así la base de datos no puede meter código.
+  function conNegritas(nodo, texto) {
+    texto.split("**").forEach((parte, i) => { if (parte) nodo.append(i % 2 ? el("strong", { text: parte }) : parte); });
+    return nodo;
+  }
+  function articuloHTML(texto) {
+    return String(texto || "").replace(/\r/g, "").split(/\n\s*\n/).map((bloque) => bloque.trim()).filter(Boolean).flatMap((bloque) => {
+      const lineas = bloque.split("\n");
+      const nodos = [];
+      // Un subtítulo puede venir pegado al párrafo que le sigue
+      if (lineas[0].startsWith("## ")) nodos.push(el("h3", { class: "articulo-subtitulo", text: lineas.shift().slice(3) }));
+      if (!lineas.length) return nodos;
+      const lista = lineas.filter((l) => l.startsWith("- "));
+      if (bloque.startsWith("> ")) {
+        const texto = lineas.join(" ").slice(2);
+        const [, titulo = "", resto = texto] = texto.match(/^(¿Sabías que\.\.\.\?)\s*(.*)$/) || [];
+        nodos.push(conNegritas(el("aside", { class: "articulo-sabias" }, titulo ? el("strong", { text: "💡 " + titulo + " " }) : ""), resto));
+      } else if (lista.length) {
+        // Párrafo que presenta la lista (si lo hay) y luego la lista
+        const intro = lineas.filter((l) => !l.startsWith("- ")).join(" ");
+        if (intro) nodos.push(conNegritas(el("p"), intro));
+        nodos.push(el("ul", { class: "articulo-lista" }, ...lista.map((l) => conNegritas(el("li"), l.slice(2)))));
+      } else {
+        nodos.push(conNegritas(el("p"), lineas.join(" ")));
+      }
+      return nodos;
+    });
+  }
+  // Minutos de lectura para un niño (unas 120 palabras por minuto)
+  const minutosDeLectura = (texto) => Math.max(1, Math.round(String(texto || "").split(/\s+/).length / 120));
+
   // Crea elementos sin innerHTML: el texto de la API siempre entra como texto.
   function el(etiqueta, atributos = {}, ...hijos) {
     const nodo = document.createElement(etiqueta);
@@ -51,6 +94,11 @@
   }
 
   const estado = { mision: null, preguntas: [], indice: 0, puntos: 0, insignias: [], ultima: null, progreso: null };
+
+  // Todas las misiones usan el juego de naves (js/juego/nave.js); lo que cambia es
+  // el escenario de cada una: el lugar, el fondo, los enemigos y la dificultad.
+  const ESCENARIO_DE = { "NQ-01": "tierra", "NQ-02": "luna", "NQ-03": "estacion", "NQ-04": "satelites", "NQ-05": "sol", "NQ-06": "estrellas" };
+  const escenarioDe = (codigo) => (Nave.ESCENARIOS[ESCENARIO_DE[codigo]] ? ESCENARIO_DE[codigo] : "estacion");
   let nave = null;
 
   // ---------- Jugador ----------
@@ -129,16 +177,23 @@
     try {
       const mision = await NQ.mision(codigo);
       const articulo = mision.articulos[0];
-      const preguntas = mision.articulos.flatMap((a) => a.preguntas);
+      // En la BD la opción correcta suele ser la primera: se revuelven para
+      // que no se pueda adivinar por su lugar
+      const preguntas = mision.articulos.flatMap((a) => a.preguntas)
+        .map((p) => ({ ...p, opciones: revolver(p.opciones) }));
       if (!articulo || preguntas.length === 0) {
         aviso("Esta misión estará lista muy pronto. ¡Mientras tanto prueba la Estación Espacial Internacional!");
         return false;
       }
       aviso("");
       Object.assign(estado, { mision, preguntas, indice: 0, puntos: 0, insignias: [], ultima: null, resumen: null });
+      // Para calificar sin conexión hay que saber de qué pregunta es cada opción
+      estado.preguntaDe = new Map(preguntas.flatMap((p) => p.opciones.map((o) => [o.id, p])));
+      estado.acertadasSinRed = new Set();
       $("[data-lectura-codigo]").textContent = `${mision.codigo} / ${mision.titulo}`;
       $("[data-lectura-titulo]").textContent = articulo.titulo;
-      $("[data-lectura-texto]").textContent = articulo.contenido;
+      $("[data-lectura-texto]").replaceChildren(...articuloHTML(articulo.contenido));
+      $("[data-lectura-tiempo]").textContent = `⏱ ${minutosDeLectura(articulo.contenido)} min de lectura · Lee con calma: las preguntas del juego salen de aquí`;
       return true;
     } catch (error) {
       aviso(mensajeDeError(error));
@@ -151,7 +206,7 @@
     $("[data-hud-vidas]").textContent = "❤️".repeat(h.vidas) + "🖤".repeat(3 - h.vidas);
     $("[data-hud-vidas]").setAttribute("aria-label", `${h.vidas} escudos`);
     $("[data-hud-puntos]").textContent = h.puntos;
-    $("[data-pregunta-contador]").textContent = `PREGUNTA ${Math.min(h.indice + 1, h.total)} DE ${h.total}`;
+    $("[data-pregunta-contador]").textContent = h.jefe ? "⚠ JEFE FINAL" : `PREGUNTA ${Math.min(h.indice + 1, h.total)} DE ${h.total}`;
     $("[data-pregunta-texto]").textContent = h.texto;
   }
 
@@ -172,9 +227,17 @@
     const secundario = $("[data-overlay-secundario]");
     if (tipo === "inicio") {
       $("[data-overlay-titulo]").textContent = estado.mision.titulo;
-      $("[data-overlay-texto]").textContent = "Los alienígenas comandantes llevan las respuestas: dispara al que tenga la correcta. Si te equivocas o te alcanza un disparo, pierdes un escudo.";
+      const esc = Nave.ESCENARIOS[escenarioDe(estado.mision.codigo)];
+      $("[data-overlay-texto]").textContent = `${esc.intro} ${esc.intro2 || ""} Los alienígenas comandantes llevan las respuestas: dispara al que tenga la correcta. Al final te espera un jefe: ${esc.jefe.nombre}. ¡Derrótalo para ganar puntos extra!`;
       $("[data-overlay-boton]").textContent = "¡Despegar!";
       secundario.hidden = true;
+    } else if (tipo === "jefe") {
+      // Perdió contra el jefe final: las preguntas ya están contestadas
+      $("[data-overlay-titulo]").textContent = "¡El jefe dañó tu nave!";
+      $("[data-overlay-texto]").textContent = "Ya contestaste todas las preguntas. Puedes pelear otra vez contra el jefe por los puntos extra, o terminar la misión.";
+      $("[data-overlay-boton]").textContent = "Pelear otra vez";
+      secundario.textContent = "Terminar la misión";
+      secundario.hidden = false;
     } else {
       $("[data-overlay-titulo]").textContent = "¡Tu nave se dañó!";
       $("[data-overlay-texto]").textContent = "Los cadetes siempre lo intentan otra vez. Repasa la lectura si lo necesitas.";
@@ -188,7 +251,7 @@
 
   $("[data-overlay-boton]").addEventListener("click", () => {
     $("[data-overlay]").hidden = true;
-    if (tipoOverlay === "perdio") nave.reintentar(); else nave.despegar();
+    if (tipoOverlay === "perdio" || tipoOverlay === "jefe") nave.reintentar(); else nave.despegar();
   });
 
   // Repasar la lectura sin salir del juego (el juego se pausa)
@@ -196,11 +259,15 @@
   function abrirRepaso() {
     const articulo = estado.mision.articulos[0];
     $("[data-dialogo-titulo]").textContent = articulo.titulo;
-    $("[data-dialogo-texto]").textContent = articulo.contenido;
+    $("[data-dialogo-texto]").replaceChildren(...articuloHTML(articulo.contenido));
     if (nave) nave.pausar();
     dialogo.showModal();
   }
-  $("[data-overlay-secundario]").addEventListener("click", abrirRepaso);
+  $("[data-overlay-secundario]").addEventListener("click", () => {
+    if (tipoOverlay !== "jefe") return abrirRepaso();
+    $("[data-overlay]").hidden = true;
+    nave.rendirse();
+  });
   $("[data-repasar]").addEventListener("click", abrirRepaso);
   $("[data-dialogo-cerrar]").addEventListener("click", () => dialogo.close());
   dialogo.addEventListener("close", () => { if (nave) nave.reanudar(); });
@@ -232,33 +299,35 @@
   document.addEventListener("fullscreenchange", () => { if (!document.fullscreenElement) pantallaGrande(false); });
 
   function despegar() {
-    if (!nave) {
-      nave = Nave.crear($("[data-canvas]"), {
-        // Cada disparo a una cápsula se califica en el servidor
-        responder: (opcionId) => NQ.responder(opcionId),
-        alRespuesta: (r) => {
-          estado.ultima = r; estado.insignias.push(...r.insignias_nuevas);
-          r.insignias_nuevas.forEach((codigo) =>
-            AvisosJuego.local(`🏅 ¡Insignia nueva: ${INSIGNIAS[codigo] || codigo}!`, "La puedes ver al terminar la misión."));
-          if (r.correcta && r.explicacion) mostrarDato(r.explicacion);
-        },
-        alHud: actualizarHud,
-        alTerminar: (info) => {
-          // Si el niño ya salió del juego (atrás), no se le cambia la pantalla
-          if (!rutaActual().startsWith("jugar/")) return;
-          estado.puntos = info.puntos; estado.resumen = info;
-          // Reemplaza: "atrás" desde el resultado no regresa a un juego terminado
-          reemplazar("resultado");
-        },
-        alPerder: () => overlay("perdio"),
-        alError: (error) => aviso(mensajeDeError(error))
-      });
-    }
+    if (!nave) nave = Nave.crear($("[data-canvas]"), callbacksDelJuego());
     aviso("");
     mostrar("juego");
-    const m = estado.mision;
-    nave.cargar(estado.preguntas, 0, /\bsol\b/i.test(m.titulo) ? "sol" : m.categoria);
+    nave.cargar(estado.preguntas, 0, escenarioDe(estado.mision.codigo));
     overlay("inicio");
+  }
+
+  function callbacksDelJuego() {
+    return {
+      // Cada disparo a una cápsula se califica en el servidor (o aquí, sin conexión)
+      responder: responderJuego,
+      alRespuesta: (r) => {
+        estado.ultima = r; estado.insignias.push(...r.insignias_nuevas);
+        r.insignias_nuevas.forEach((codigo) =>
+          AvisosJuego.local(`🏅 ¡Insignia nueva: ${INSIGNIAS[codigo] || codigo}!`, "La puedes ver al terminar la misión."));
+        if (r.correcta && r.explicacion) mostrarDato(r.explicacion);
+      },
+      alHud: actualizarHud,
+      alTerminar: (info) => {
+        // Si el niño ya salió del juego (atrás), no se le cambia la pantalla
+        if (!rutaActual().startsWith("jugar/")) return;
+        estado.puntos = info.puntos; estado.resumen = info;
+        // Reemplaza: "atrás" desde el resultado no regresa a un juego terminado
+        reemplazar("resultado");
+      },
+      alPerder: (info) => overlay(info?.jefe ? "jefe" : "perdio"),
+      alJefe: () => jefeDerrotado(estado.mision.codigo),
+      alError: (error) => aviso(mensajeDeError(error))
+    };
   }
 
   // ---------- Resultado ----------
@@ -270,10 +339,16 @@
     const estrellas = r.vidas >= 3 ? 3 : r.vidas === 2 ? 2 : 1;
     $("[data-final-estrellas]").textContent = "⭐".repeat(estrellas) + "☆".repeat(3 - estrellas);
     $("[data-final-estrellas]").setAttribute("aria-label", `${estrellas} de 3 estrellas`);
-    $("[data-final-detalle]").textContent = `Escudos perdidos: ${r.fallos} · Mejor racha: ${r.racha} · Alienígenas derribados: ${r.aliens}`;
+    const extra = r.extra ?? `Alienígenas derribados: ${r.aliens}`;
+    const jefe = r.jefe ? (r.jefe.derrotado ? `👾 ${r.jefe.nombre} derrotado${r.jefe.bono ? ` (+${r.jefe.bono} pts extra)` : ""}` : `👾 ${r.jefe.nombre} escapó`) : "";
+    $("[data-final-detalle]").textContent = [`Escudos perdidos: ${r.fallos}`, `Mejor racha: ${r.racha}`, extra, jefe].filter(Boolean).join(" · ");
     $("[data-final-insignias]").replaceChildren(...estado.insignias.map((codigo) =>
       el("span", { class: "insignia", text: `🏅 ${INSIGNIAS[codigo] || codigo}` })));
-        mostrar("final");
+    const pendientes = await NQPendientes.contar().catch(() => 0);
+    const caja = $("[data-final-pendientes]");
+    caja.textContent = `⏳ Jugaste sin conexión: ${pendientes} respuesta${pendientes === 1 ? "" : "s"} se guardará${pendientes === 1 ? "" : "n"} cuando vuelva el internet. Los puntos oficiales y las insignias se cuentan en ese momento.`;
+    caja.hidden = !pendientes;
+    mostrar("final");
     actualizarJugador();
     try {
       const filas = await NQ.llamar("ranking", { params: { codigo_grupo: leer("nq_grupo") || "" } });
@@ -346,8 +421,80 @@
   }
   window.addEventListener("popstate", mostrarRuta);
 
+  // ---------- Sin conexión ----------
+  // Si no hay internet, la respuesta se califica aquí con la "clave" que mandó el
+  // servidor (sha256 de sal:id_correcta), se guarda en la bandeja (pendientes.js)
+  // y se envía sola al volver la conexión. El servidor sigue siendo quien cuenta
+  // los puntos oficiales: aquí solo se muestran mientras tanto.
+  async function sha256(texto) {
+    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
+    return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  async function jefeDerrotado(codigo) {
+    try {
+      return await NQ.llamar("jefe", { metodo: "POST", datos: { mision: codigo } });
+    } catch (error) {
+      if (!(error instanceof TypeError)) return { puntos_ganados: 0 };
+      await NQPendientes.guardar({ jefe: codigo, token: leer("nq_token") });
+      pedirSincronizacion();
+      marcarSinRed(true);
+      return { puntos_ganados: 0, sinConexion: true };
+    }
+  }
+
+  async function responderJuego(opcionId) {
+    try {
+      const r = await NQ.responder(opcionId);
+      marcarSinRed(false);
+      return r;
+    } catch (error) {
+      const p = estado.preguntaDe?.get(opcionId);
+      // Solo un fallo de red se califica aquí; un error del servidor se muestra
+      if (!(error instanceof TypeError) || !p?.clave || !window.crypto?.subtle) throw error;
+      const correcta = (await sha256(`${p.sal}:${opcionId}`)) === p.clave;
+      await NQPendientes.guardar({ opcion_id: opcionId, token: leer("nq_token") });
+      pedirSincronizacion();
+      marcarSinRed(true);
+      const primera = correcta && !estado.acertadasSinRed.has(p.id);
+      if (correcta) estado.acertadasSinRed.add(p.id);
+      return { correcta, puntos_ganados: primera ? Number(p.puntos) : 0, completada: false,
+               insignias_nuevas: [], explicacion: correcta ? p.explicacion : null, sinConexion: true };
+    }
+  }
+
+  function marcarSinRed(sinRed) { $("[data-sin-red]").hidden = !sinRed; }
+
+  // Con Background Sync el service worker envía la bandeja aunque se cierre la
+  // página; si el navegador no lo tiene, la envía la página al volver la conexión.
+  async function pedirSincronizacion() {
+    try {
+      const reg = await navigator.serviceWorker?.ready;
+      if (reg && "sync" in reg) { await reg.sync.register("nq-respuestas"); return; }
+    } catch { /* sin Background Sync */ }
+    if (navigator.onLine) sincronizarAqui();
+  }
+  async function sincronizarAqui() {
+    const res = await NQPendientes.enviar(location.href).catch(() => null);
+    if (res?.enviadas) avisarSincronizado(res);
+  }
+  function avisarSincronizado(res) {
+    marcarSinRed(false);
+    const n = res.enviadas === 1 ? "1 respuesta" : `${res.enviadas} respuestas`;
+    aviso(`📡 Volvió el internet: se guardó lo que jugaste sin conexión (${n}, +${res.puntos} pts).`, "ok");
+    res.insignias.forEach((codigo) =>
+      AvisosJuego.local(`🏅 ¡Insignia nueva: ${INSIGNIAS[codigo] || codigo}!`, "La ganaste con tus respuestas sin conexión."));
+    actualizarJugador();
+  }
+  navigator.serviceWorker?.addEventListener("message", (e) => {
+    if (e.data?.tipo === "nq-sincronizado") avisarSincronizado(e.data);
+  });
+  window.addEventListener("online", pedirSincronizacion);
+  window.addEventListener("offline", () => { if (rutaActual().startsWith("jugar/")) marcarSinRed(true); });
+
   // ---------- Inicio ----------
   async function iniciar() {
+    NQPendientes.contar().then((n) => { if (n) pedirSincronizacion(); }).catch(() => {});
     if (!leer("nq_token")) { mostrarRuta(); return; }
     try {
       estado.progreso = await NQ.progreso();
@@ -361,7 +508,7 @@
       }
       // Sin conexión u otro fallo: se conserva la sesión y se intenta con lo guardado
       aviso(error instanceof TypeError
-        ? "Estás sin conexión. Puedes leer las misiones guardadas; para calificar tus respuestas y sumar puntos necesitas internet."
+        ? "Estás sin conexión. Puedes jugar las misiones que ya se descargaron: tus respuestas se guardan y se envían solas cuando vuelva el internet."
         : mensajeDeError(error));
     }
     await actualizarJugador(false);

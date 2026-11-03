@@ -14,6 +14,7 @@
 //   POST r=push_suscribir              {endpoint, keys:{p256dh, auth}} (X-Token opcional)
 //   POST r=push_baja                   {endpoint}
 //   POST r=push_prueba                 {endpoint} -> envía un aviso a ese navegador
+//   POST r=jefe                        {mision} -> puntos extra por el jefe final (X-Token)
 //   POST r=juego_avisos_estado         {endpoint} -> ¿este navegador tiene avisos del juego? (X-Token)
 //   POST r=juego_avisos_suscribir      {endpoint, keys:{p256dh, auth}} (X-Token)
 //   POST r=juego_avisos_baja           {endpoint} (X-Token)
@@ -62,6 +63,9 @@ function darInsignia(PDO $pdo, int $uid, string $codigo): bool {
     return $st->rowCount() > 0;
 }
 
+// Puntos extra por derrotar al jefe final de cada misión (r=jefe)
+const JEFE_PUNTOS = ['NQ-01' => 20, 'NQ-02' => 25, 'NQ-03' => 30, 'NQ-04' => 35, 'NQ-05' => 40, 'NQ-06' => 50];
+
 $recurso = $_GET['r'] ?? '';
 $metodo  = $_SERVER['REQUEST_METHOD'];
 
@@ -81,14 +85,20 @@ try {
             $arts->execute([$m['id']]);
             $m['articulos'] = $arts->fetchAll();
             foreach ($m['articulos'] as &$a) {
-                $pr = db()->prepare('SELECT id, texto, puntos FROM preguntas WHERE articulo_id = ?');
+                $pr = db()->prepare('SELECT id, texto, puntos, explicacion FROM preguntas WHERE articulo_id = ?');
                 $pr->execute([$a['id']]);
                 $a['preguntas'] = $pr->fetchAll();
                 foreach ($a['preguntas'] as &$p) {
                     // No se envía es_correcta: el servidor es quien califica
-                    $op = db()->prepare('SELECT id, texto FROM opciones WHERE pregunta_id = ?');
+                    $op = db()->prepare('SELECT id, texto, es_correcta FROM opciones WHERE pregunta_id = ?');
                     $op->execute([$p['id']]);
-                    $p['opciones'] = $op->fetchAll();
+                    $ops = $op->fetchAll();
+                    // Para jugar sin conexión: sha256(sal:id_correcta). El navegador puede
+                    // comprobar una respuesta, pero no ve cuál es la correcta escrita.
+                    $correcta = array_values(array_filter($ops, fn($o) => (int)$o['es_correcta'] === 1))[0]['id'] ?? 0;
+                    $p['sal']   = bin2hex(random_bytes(8));
+                    $p['clave'] = hash('sha256', $p['sal'] . ':' . $correcta);
+                    $p['opciones'] = array_map(fn($o) => ['id' => $o['id'], 'texto' => $o['texto']], $ops);
                 }
                 unset($p);
             }
@@ -118,13 +128,15 @@ try {
             if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
             $u = usuarioActual();
             $opcionId = (int)(cuerpo()['opcion_id'] ?? 0);
-            $st = db()->prepare('SELECT o.id, o.pregunta_id, o.es_correcta, p.puntos, p.explicacion, p.etapa_id, a.mision_id
+            $st = db()->prepare('SELECT o.id, o.pregunta_id, o.es_correcta, p.puntos, p.explicacion, p.etapa_id, a.mision_id, mi.activa
                                  FROM opciones o
                                  JOIN preguntas p ON p.id = o.pregunta_id
                                  LEFT JOIN articulos a ON a.id = p.articulo_id
+                                 LEFT JOIN misiones mi ON mi.id = a.mision_id
                                  WHERE o.id = ?');
             $st->execute([$opcionId]);
             $o = $st->fetch() ?: salida(404, ['error' => 'Esa opción no existe']);
+            if ($o['mision_id'] !== null && !(int)$o['activa']) salida(403, ['error' => 'Esa misión no está disponible']);
 
             // La pregunta es de una misión (videojuego) o de una etapa (línea de tiempo)
             if ($o['mision_id'] !== null) {
@@ -178,6 +190,16 @@ try {
                     $conReto = (int)$pdo->query('SELECT COUNT(DISTINCT etapa_id) FROM preguntas WHERE etapa_id IS NOT NULL')->fetchColumn();
                     if ((int)$hechas->fetchColumn() >= $conReto && darInsignia($pdo, (int)$u['id'], 'viajero_tiempo')) $insignias[] = 'viajero_tiempo';
                 }
+            }
+            // Insignia "Científico": sus últimas 10 respuestas del juego fueron correctas
+            if ($tabla === 'progreso' && $o['es_correcta']) {
+                $racha = $pdo->prepare('SELECT COUNT(*) AS n, COALESCE(SUM(correcta), 0) AS ok FROM (
+                                          SELECT i.correcta FROM intentos i JOIN preguntas p ON p.id = i.pregunta_id
+                                          WHERE i.usuario_id = ? AND p.articulo_id IS NOT NULL
+                                          ORDER BY i.id DESC LIMIT 10) ultimas');
+                $racha->execute([$u['id']]);
+                $r = $racha->fetch();
+                if ((int)$r['n'] === 10 && (int)$r['ok'] === 10 && darInsignia($pdo, (int)$u['id'], 'cientifico')) $insignias[] = 'cientifico';
             }
             $pdo->commit();
             // Avisos del juego: si rebasó a alguien de su grupo, se le avisa.
@@ -330,6 +352,40 @@ try {
             if ($codigo < 200 || $codigo >= 300) salida(502, ['error' => 'El servicio de avisos no respondió (código ' . $codigo . ')']);
             db()->prepare('UPDATE push_suscripciones SET ultimo_envio = NOW() WHERE id = ?')->execute([$sub['id']]);
             salida(200, ['ok' => true]);
+
+        // ----- Jefe final del videojuego: puntos extra -----
+        case 'jefe':
+            if ($metodo !== 'POST') salida(405, ['error' => 'Usa POST']);
+            $u = usuarioActual();
+            $st = db()->prepare('SELECT id, activa FROM misiones WHERE codigo = ?');
+            $st->execute([(string)(cuerpo()['mision'] ?? '')]);
+            $mi = $st->fetch() ?: salida(404, ['error' => 'Misión no encontrada']);
+            if (!(int)$mi['activa']) salida(403, ['error' => 'Esa misión no está disponible']);
+            // El jefe sale después de la última pregunta: la misión debe estar completada
+            $st = db()->prepare("SELECT 1 FROM progreso WHERE usuario_id = ? AND mision_id = ? AND estado = 'completada'");
+            $st->execute([$u['id'], $mi['id']]);
+            if (!$st->fetch()) salida(409, ['error' => 'Primero responde todas las preguntas de la misión']);
+            // Más difícil la misión, más puntos (una sola vez por misión)
+            $bono = JEFE_PUNTOS[(string)(cuerpo()['mision'] ?? '')] ?? 20;
+            $pdo = db();
+            $pdo->beginTransaction();
+            $ins = $pdo->prepare('INSERT IGNORE INTO jefes_derrotados (usuario_id, mision_id, puntos) VALUES (?, ?, ?)');
+            $ins->execute([$u['id'], $mi['id'], $bono]);
+            $primera = $ins->rowCount() > 0;
+            if ($primera) {
+                $pdo->prepare('UPDATE progreso SET puntos = puntos + ? WHERE usuario_id = ? AND mision_id = ?')
+                    ->execute([$bono, $u['id'], $mi['id']]);
+            }
+            $pdo->commit();
+            if ($primera) {
+                try {
+                    require_once __DIR__ . '/juego/avisos.php';
+                    pushJuegoRanking($pdo, $u, $bono);
+                } catch (Throwable $e) {
+                    error_log('NovaQuest push juego: ' . $e->getMessage());
+                }
+            }
+            salida(200, ['puntos_ganados' => $primera ? $bono : 0, 'primera_vez' => $primera]);
 
         // ----- Avisos del videojuego (tabla push_juego, ver api/juego/avisos.php) -----
         case 'juego_avisos_estado':

@@ -1,4 +1,5 @@
-// Motor del juego de NovaQuest estilo Galaga (Phaser 3).
+// Motor del juego de NovaQuest estilo Galaga (Phaser 3). Lo usan todas las misiones;
+// cada una tiene su escenario (ESCENARIOS): lugar, enemigos y dificultad.
 // Misma API que la versión anterior (Nave.crear). Cada pregunta es una oleada: los
 // alienígenas comandantes (fila de arriba) llevan las respuestas y el niño dispara al
 // que tiene la correcta. El juego NO sabe cuál es: cada impacto a un comandante se
@@ -18,8 +19,79 @@
   // ---------- Alienígenas en pixel art ----------
   // Cada fila es la mitad izquierda + la columna central; se refleja para hacerla simétrica.
   // Dos cuadros por alienígena para que aleteen.
-  const PALETA = { y: 0xffd84a, b: 0x4a8cff, r: 0xff4a5a, w: 0xffffff, g: 0x3fe08a, p: 0xa36bff };
+  const PALETA = {
+    y: 0xffd84a, b: 0x4a8cff, r: 0xff4a5a, w: 0xffffff, g: 0x3fe08a, p: 0xa36bff,
+    c: 0x6fffe0, m: 0xff5ad8, k: 0xa8b0c4, d: 0x4a5270, o: 0xff8a2a, l: 0xc8a8ff, s: 0xe6ebf5, n: 0x2a5fd8, f: 0xfff0a0
+  };
+  // Cada escenario usa tres familias: "abeja" (se lanza en picada), "mariposa" (dispara al
+  // picar) y "comandante" (lleva la respuesta). Abajo están los diseños de cada una.
   const SPRITES = {
+    // Órbita de la Tierra
+    medusa: [
+      ["...cccc", "..cccwc", "..ccccc", ".cmcmcm", "..c..c.", "..c..c.", "...c..c", "..c..c.", "...c..."],
+      ["...cccc", "..cccwc", "..ccccc", ".mcmcmc", "...c..c", "..c..c.", "..c..c.", "...c..c", "......c"]
+    ],
+    calamar: [
+      ["......m", ".....mm", "....mmm", "...mmmm", "..mwmmm", "..mmmmm", ".m.m.m.", "m..m..m", ".m..m.."],
+      ["......m", ".....mm", "....mmm", "...mmmm", "..mwmmm", "..mmmmm", "..m.m.m", "..m..m.", "...m..m"]
+    ],
+    pulpo: [
+      [".....ggg", "...ggggg", "..gggggg", "..gdwggg", "..gggggg", ".ggggggg", "g.g.g.g.", "g..g..g.", ".g..g..g"],
+      [".....ggg", "...ggggg", "..gggggg", "..gdwggg", "..gggggg", ".ggggggg", ".g.g.g.g", ".g..g..g", "g..g..g."]
+    ],
+    // Superficie de la Luna
+    polilla: [
+      ["k......", "kk....l", "kkk..ll", "kkkk.ll", ".kkkkll", "..kk.ll", ".kk..ll", "kk....l", "k......"],
+      [".......", "..k...l", ".kkk.ll", "kkkkkll", "kkkkkll", ".kkk.ll", "..k..ll", "......l", "......."]
+    ],
+    escarabajo: [
+      ["..d....", "...d...", "...kkkk", "..kkykk", ".kkkkkk", ".kdkdkd", ".kkkkkk", "..k.k.k", ".k..k.."],
+      ["...d...", "...d...", "...kkkk", "..kkykk", ".kkkkkk", ".kdkdkd", ".kkkkkk", ".k.k.k.", "..k..k."]
+    ],
+    rocoso: [
+      ["....kkkk", "..kkkkkk", ".kkdkkkk", ".kkykkkk", "kkkkkkkk", "kdkkkdkk", "kkkkkkkk", ".kk.kk.k", "..k..k.."],
+      ["....kkkk", "..kkkkkk", ".kkdkkkk", ".kkykkkk", "kkkkkkkk", "kdkkkdkk", "kkkkkkkk", "kk.kk.kk", ".k..k..k"]
+    ],
+    // Cinturón de satélites
+    dron: [
+      ["nn.....", "nnn..ss", ".n.ssss", "...sssr", "...ssss", ".n.ssss", "nnn..ss", "nn.....", "......."],
+      [".......", ".nn..ss", "nnnssss", "...sssr", "...ssss", "nnnssss", ".nn..ss", ".......", "......."]
+    ],
+    antena: [
+      ["nnn...y", "nnn..yy", "nnnkyyy", "nnnkyry", "nnnkyyy", "nnn..yy", "nnn...y", "......k", "......w"],
+      ["nnn...y", "nnn..yy", "nnnkyyy", "nnnkywy", "nnnkyyy", "nnn..yy", "nnn...y", "......k", "......r"]
+    ],
+    nodo: [
+      ["......cc", "....cccc", "..ccdddd", ".ccdwddd", "ccdddddd", ".ccddddr", "..ccdddd", "....cccc", "......cc"],
+      ["......cc", "....cccc", "..ccdddd", ".ccdrddd", "ccdddddd", ".ccddddw", "..ccdddd", "....cccc", "......cc"]
+    ],
+    // Cerca del Sol
+    chispa: [
+      ["......y", ".....yo", "....yoo", "...yoof", "..yooff", "..oooff", "...ooof", "....ooo", "......o"],
+      [".......", "......y", ".....yo", "....yoo", "...yoof", "..yooff", "..oooff", "...oooo", ".....oo"]
+    ],
+    salamandra: [
+      ["......r", ".....rr", "r..rrry", ".rrrooo", "...rooo", "...rooo", ".rrrooo", "r....rr", "......r"],
+      ["......r", "r....rr", ".rrrrry", "...rooo", "...rooo", "...rooo", "...rooo", ".rr..rr", "r.....r"]
+    ],
+    fenix: [
+      ["o.......", "oo.....y", "ooo...yy", ".oooyyyy", "..ooyfyf", "...ooyyy", "....ooyy", ".....o.y", "......o."],
+      ["........", "o......y", "oo....yy", "ooooyyyy", ".oooyfyf", "...ooyyy", "....ooyy", ".....o.y", "......o."]
+    ],
+    // Espacio profundo
+    cristal: [
+      ["......c", ".....cl", "....cll", "...clll", "..cllll", "...clll", "....cll", ".....cl", "......c"],
+      ["......w", ".....cl", "....cll", "...cllw", "..cllll", "...clll", "....cll", ".....cl", "......w"]
+    ],
+    astro: [
+      ["......m", "......m", ".....mm", "mmmmmmw", ".mmmmmm", "..mmmmm", "..mm.mm", ".mm....", "m......"],
+      ["......w", "......m", ".....mm", ".mmmmmw", "..mmmmm", "..mmmmm", "..mm.mm", ".m.....", "m......"]
+    ],
+    espectro: [
+      ["....pppp", "..pppppp", ".ppppppp", ".ppwwppp", ".ppwdppp", "pppppppp", "pppppppp", "pp.ppp.p", "p...p..."],
+      ["....pppp", "..pppppp", ".ppppppp", ".ppwwppp", ".ppwdppp", "pppppppp", "pppppppp", ".pp.ppp.", "..p...p."]
+    ],
+    // Estación Espacial Internacional (los originales)
     abeja: [
       ["...y...", "....y.y", "..bbyyy", ".bb.yry", "bb..yyy", "b...ryr", "....yyy", "...y..y", "..y...."],
       ["...y...", "....y.y", "b...yyy", "bb.byry", ".bbbyyy", "....ryr", "....yyy", "....y.y", "...y..."]
@@ -37,6 +109,274 @@
   const ESCALA = { abeja: 0.42, mariposa: 0.42, comandante: 0.5 };
   const RADIO = { abeja: 15, mariposa: 15, comandante: 20 };
   const BAJO_ETIQUETA = 20;                       // distancia del comandante a su etiqueta
+
+  // ---------- Escenarios (uno por misión) ----------
+  // Lo que cambia entre misiones: el lugar (fondo, lo que hay abajo de la nave y lo que
+  // flota detrás), los enemigos y la dificultad. Van de la más fácil a la más difícil.
+  // Dificultad: filas(i) = filas de la oleada i · picadas = cuántos bajan a la vez ·
+  // cadencia = espera entre picadas (más alto = más tranquilo) · bala = velocidad de los
+  // disparos enemigos · tiros = disparos de cada "mariposa" al picar · abanico = disparos
+  // por ráfaga del jefe · premio = probabilidad de premio.
+  // cielo = fondo dibujado (ver crearCielos) · balaE = colores de los disparos enemigos ·
+  // jefe = jefe final: textura, tamaño, vida, ataques ("abanico", "apuntado", "lluvia",
+  // "espiral"), escolta que suelta y movimiento ("vaiven" u "ocho")
+  const ESCENARIOS = {
+    tierra: {
+      nombre: "Órbita de la Tierra",
+      intro: "Escenario: órbita baja de la Tierra. Aquí te esperan las medusas espaciales: es el nivel más tranquilo.",
+      intro2: "Es de noche: abajo brillan las luces de las ciudades.",
+      cielo: "cielo_noche", fondo: 0xffffff, luz: 0x2a4a9a, suelo: "suelo_noche", halo: 0x2a5fd8,
+      lejanas: { textura: "asteroide_fondo_blur", tinte: 0x24345a, alfa: [0.3, 0.5] },
+      balaE: [0x6fffe0, 0xe8fffb],
+      jefe: { nombre: "Kraken orbital", textura: "jefe_tierra", escala: 0.6, vida: 22, brillo: 0x6fffe0,
+              ataques: ["abanico", "lluvia"], escolta: "abeja", mov: "vaiven" },
+      enemigos: { abeja: "medusa", mariposa: "calamar", comandante: "pulpo" },
+      tintes: { abeja: [0x6fffe0, 0xff5ad8], mariposa: [0xff5ad8, 0xffffff], comandante: [0x3fe08a, 0xffffff] },
+      dif: { filas: (i) => (i < 2 ? ["abeja", "abeja"] : ["mariposa", "abeja"]), picadas: 1, cadencia: 1.4, rapidez: 0.75,
+             bala: 190, tiros: [0.45], abanico: 3, premio: 0.1 }
+    },
+    luna: {
+      nombre: "Superficie de la Luna",
+      intro: "Escenario: sobre la superficie de la Luna, con la Tierra a lo lejos. Polillas lunares y escarabajos de roca vuelan entre los cráteres.",
+      cielo: "cielo_luna", fondo: 0xffffff, luz: 0x50586e, suelo: "suelo_luna", halo: 0xc8d0e8, planetaLejano: true,
+      lejanas: { textura: "asteroide_fondo_blur", tinte: 0x3a3e4a, alfa: [0.25, 0.4] },
+      balaE: [0xffd84a, 0xfff6d0],
+      jefe: { nombre: "Cangrejo de cráter", textura: "jefe_luna", escala: 0.6, vida: 28, brillo: 0xc8d0e8,
+              ataques: ["apuntado", "abanico"], escolta: "abeja", mov: "ocho" },
+      enemigos: { abeja: "polilla", mariposa: "escarabajo", comandante: "rocoso" },
+      tintes: { abeja: [0xa8b0c4, 0xc8a8ff], mariposa: [0xa8b0c4, 0xffd84a], comandante: [0xa8b0c4, 0xffffff] },
+      dif: { filas: (i) => (i === 0 ? ["mariposa", "abeja"] : ["mariposa", "abeja", "abeja"]), picadas: 2, cadencia: 1.2, rapidez: 0.9,
+             bala: 210, tiros: [0.42], abanico: 3, premio: 0.08 }
+    },
+    estacion: {
+      nombre: "Estación Espacial Internacional",
+      intro: "Escenario: junto a la Estación Espacial Internacional. Las abejas y mariposas alienígenas atacan en formación.",
+      cielo: "fondo", fondo: 0xffffff, luz: 0x8fd8ff, suelo: "tierra", halo: 0x4aa3ff,
+      lejanas: { textura: "asteroide_fondo_blur", tinte: 0x7fa8d8, alfa: [0.35, 0.6] },
+      balaE: [0xff6846, 0xffe0a0],
+      jefe: { nombre: "Nave nodriza", textura: "nodriza", escala: 0.55, vida: 30, brillo: 0xc08cff,
+              ataques: ["abanico", "apuntado"], escolta: "abeja", mov: "vaiven" },
+      enemigos: { abeja: "abeja", mariposa: "mariposa", comandante: "comandante" },
+      tintes: { abeja: [0xffd84a, 0x4a8cff], mariposa: [0xff4a5a, 0xffffff], comandante: [0x3fe08a, 0xa36bff] },
+      dif: { filas: (i) => (i === 0 ? ["mariposa", "abeja"] : ["mariposa", "mariposa", "abeja"]), picadas: 2, cadencia: 1, rapidez: 1,
+             bala: 230, tiros: [0.35, 0.5], abanico: 3, premio: 0.06 }
+    },
+    satelites: {
+      nombre: "Cinturón de satélites",
+      intro: "Escenario: el cinturón de satélites que rodea la Tierra. Los drones y las antenas enemigas son más rápidos: ¡cuidado!",
+      intro2: "Sobre el polo, las auroras pintan el cielo de verde.",
+      cielo: "cielo_aurora", fondo: 0xffffff, luz: 0x3fe08a, suelo: "suelo_noche", halo: 0x3fe08a,
+      lejanas: { textura: "satdecor", tinte: 0xffffff, alfa: [0.35, 0.6], nitidas: true },
+      balaE: [0x3fe08a, 0xe0ffe8],
+      jefe: { nombre: "Satélite renegado", textura: "jefe_satelites", escala: 0.62, vida: 36, brillo: 0x6fffe0,
+              ataques: ["apuntado", "lluvia", "abanico"], escolta: "mariposa", mov: "ocho" },
+      enemigos: { abeja: "dron", mariposa: "antena", comandante: "nodo" },
+      tintes: { abeja: [0xe6ebf5, 0xff4a5a], mariposa: [0x2a5fd8, 0xffd84a], comandante: [0x6fffe0, 0xffffff] },
+      dif: { filas: (i) => (i === 0 ? ["mariposa", "abeja", "abeja"] : ["mariposa", "mariposa", "abeja"]), picadas: 3, cadencia: 0.9, rapidez: 1.12,
+             bala: 250, tiros: [0.35, 0.5], abanico: 3, premio: 0.06 }
+    },
+    sol: {
+      nombre: "Cerca del Sol",
+      intro: "Escenario: muy cerca del Sol, entre llamaradas. Las chispas y salamandras de fuego disparan más rápido.",
+      cielo: "cielo_sol", fondo: 0xffffff, luz: 0xff7a2a, suelo: "suelo_sol", halo: 0xff8a2a, llamas: true, estrellas: 0.35,
+      lejanas: { textura: "asteroide_fondo_blur", tinte: 0x7a2a10, alfa: [0.3, 0.5] },
+      balaE: [0xff3a1a, 0xfff0a0],
+      jefe: { nombre: "Fénix solar", textura: "jefe_sol", escala: 0.65, vida: 42, brillo: 0xff8a2a,
+              ataques: ["lluvia", "abanico", "apuntado"], escolta: "mariposa", mov: "ocho" },
+      enemigos: { abeja: "chispa", mariposa: "salamandra", comandante: "fenix" },
+      tintes: { abeja: [0xffd84a, 0xff8a2a], mariposa: [0xff4a5a, 0xff8a2a], comandante: [0xffd84a, 0xffffff] },
+      dif: { filas: (i) => (i === 0 ? ["mariposa", "mariposa", "abeja"] : ["mariposa", "mariposa", "abeja", "abeja"]), picadas: 3, cadencia: 0.8, rapidez: 1.2,
+             bala: 270, tiros: [0.3, 0.45, 0.6], abanico: 4, premio: 0.07 }
+    },
+    estrellas: {
+      nombre: "Espacio profundo",
+      intro: "Escenario: el espacio profundo, entre nebulosas y estrellas lejanas. Es el nivel más difícil: cristales y astros atacan sin parar.",
+      cielo: "cielo_nebulosa", fondo: 0xffffff, luz: 0xd070ff, suelo: null, halo: 0xc08cff,
+      lejanas: { textura: "luz", tinte: 0xd070ff, alfa: [0.12, 0.22], nebulosa: true },
+      balaE: [0xff5ad8, 0xffe0f6],
+      jefe: { nombre: "Devorador de estrellas", textura: "jefe_estrellas", escala: 0.65, vida: 50, brillo: 0xd070ff,
+              ataques: ["espiral", "apuntado", "abanico"], escolta: "mariposa", mov: "ocho" },
+      enemigos: { abeja: "cristal", mariposa: "astro", comandante: "espectro" },
+      tintes: { abeja: [0x6fffe0, 0xc8a8ff], mariposa: [0xff5ad8, 0xffffff], comandante: [0xa36bff, 0xffffff] },
+      dif: { filas: (i) => (i === 0 ? ["mariposa", "mariposa", "abeja", "abeja"] : ["mariposa", "mariposa", "mariposa", "abeja"]), picadas: 3, cadencia: 0.7, rapidez: 1.3,
+             bala: 290, tiros: [0.3, 0.45, 0.6], abanico: 5, premio: 0.08 }
+    }
+  };
+
+  Object.entries(ESCENARIOS).forEach(([clave, e]) => { e.clave = clave; });
+
+  // ---------- Cielos de fondo (se dibujan una vez, en un canvas) ----------
+  const rgba = (hex, a) => `rgba(${hex >> 16 & 255}, ${hex >> 8 & 255}, ${hex & 255}, ${a})`;
+  function crearCielos(escena) {
+    const lienzo = (clave, dibujar) => {
+      const t = escena.textures.createCanvas(clave, 960, 1280);
+      dibujar(t.getContext(), 960, 1280);
+      t.refresh();
+    };
+    const degradado = (c, w, h, colores) => {
+      const g = c.createLinearGradient(0, 0, 0, h);
+      colores.forEach((col, i) => g.addColorStop(i / (colores.length - 1), col));
+      c.fillStyle = g; c.fillRect(0, 0, w, h);
+    };
+    const mancha = (c, x, y, r, col, a) => {
+      const g = c.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, rgba(col, a)); g.addColorStop(1, rgba(col, 0));
+      c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    const estrellas = (c, w, h, cuantas, colores, max = 1.8, zona = null) => {
+      for (let i = 0; i < cuantas; i++) {
+        const x = zona ? zona.x() : rand(0, w), y = zona ? zona.y(x) : rand(0, h), r = rand(0.4, max);
+        c.globalAlpha = rand(0.35, 1); c.fillStyle = colores[i % colores.length];
+        c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill();
+        if (r > max * 0.85) { mancha(c, x, y, r * 7, 0xffffff, 0.25); }
+      }
+      c.globalAlpha = 1;
+    };
+    // Noche sobre la Tierra: muy oscuro, muchas estrellas y la Vía Láctea en diagonal
+    lienzo("cielo_noche", (c, w, h) => {
+      degradado(c, w, h, ["#010208", "#040a20", "#0a1838", "#132a5a"]);
+      for (let i = 0; i < 40; i++) { const x = rand(0, w); mancha(c, x, h * 0.9 - x * 0.7 + rand(-60, 60), rand(80, 160), i % 2 ? 0x8a7ad8 : 0x4a6ad8, 0.06); }
+      estrellas(c, w, h, 700, ["#ffffff", "#cfe0ff", "#fff2d0"], 2);
+      estrellas(c, w, h, 500, ["#ffffff", "#d8d0ff"], 1.1, { x: () => rand(0, w), y: (x) => h * 0.9 - x * 0.7 + rand(-90, 90) });
+    });
+    // Cielo de la Luna: negro total, sin aire; estrellas nítidas
+    lienzo("cielo_luna", (c, w, h) => {
+      degradado(c, w, h, ["#000000", "#030305", "#0a0a10"]);
+      estrellas(c, w, h, 900, ["#ffffff", "#e8ecff", "#fff4dc"], 1.6);
+    });
+    // Auroras: cortinas verdes que ondulan sobre la noche polar
+    lienzo("cielo_aurora", (c, w, h) => {
+      degradado(c, w, h, ["#01060a", "#021418", "#04262a", "#06343a"]);
+      estrellas(c, w, h, 500, ["#ffffff", "#d0fff0"], 1.6);
+      c.globalCompositeOperation = "lighter";
+      [[0x3fe08a, 520, 0.22], [0x6fffe0, 650, 0.14], [0xc070ff, 380, 0.1]].forEach(([col, base, a], capa) => {
+        for (let x = 0; x < w; x += 3) {
+          const y = base + Math.sin(x * 0.006 + capa * 2) * 120 + Math.sin(x * 0.017 + capa) * 40;
+          const alto = 220 + Math.sin(x * 0.011 + capa * 3) * 110;
+          const g = c.createLinearGradient(0, y - alto, 0, y);
+          g.addColorStop(0, rgba(col, 0)); g.addColorStop(0.75, rgba(col, a)); g.addColorStop(1, rgba(col, 0));
+          c.fillStyle = g; c.fillRect(x, y - alto, 3, alto);
+        }
+      });
+      c.globalCompositeOperation = "source-over";
+    });
+    // Cerca del Sol: cielo rojo y naranja que se calienta hacia abajo
+    lienzo("cielo_sol", (c, w, h) => {
+      degradado(c, w, h, ["#140200", "#3a0802", "#7a1a04", "#c8460c", "#ff8a2a"]);
+      for (let i = 0; i < 18; i++) mancha(c, rand(0, w), rand(h * 0.3, h), rand(120, 280), i % 2 ? 0xff6a1a : 0xffc04a, 0.12);
+      estrellas(c, w, h * 0.45, 140, ["#ffd8b0", "#ffffff"], 1.2);
+    });
+    // Espacio profundo: nebulosa morada y rosa con una galaxia en espiral
+    lienzo("cielo_nebulosa", (c, w, h) => {
+      degradado(c, w, h, ["#05010c", "#0c0320", "#14052c"]);
+      for (let i = 0; i < 30; i++) mancha(c, rand(0, w), rand(0, h), rand(120, 320), [0xff5ad8, 0x7a3ad8, 0x2a5fd8, 0xd070ff][i % 4], 0.12);
+      estrellas(c, w, h, 800, ["#ffffff", "#f0d8ff", "#d0e8ff"], 1.8);
+      // Galaxia: dos brazos de puntitos alrededor de un centro brillante
+      const gx = w * 0.7, gy = h * 0.26;
+      mancha(c, gx, gy, 140, 0xfff0ff, 0.35);
+      for (let brazo = 0; brazo < 2; brazo++) {
+        for (let k = 0; k < 500; k++) {
+          const t = (k / 500) * Math.PI * 3, r = 10 + t * 32 + rand(-10, 10), a = t + brazo * Math.PI;
+          c.globalAlpha = rand(0.2, 0.8) * (1 - k / 600); c.fillStyle = k % 3 ? "#e8d0ff" : "#ffffff";
+          c.beginPath(); c.arc(gx + Math.cos(a) * r, gy + Math.sin(a) * r * 0.42, rand(0.6, 1.8), 0, Math.PI * 2); c.fill();
+        }
+      }
+      c.globalAlpha = 1;
+    });
+  }
+
+  // ---------- Jefes finales (dibujados con figuras) ----------
+  function crearJefes(escena) {
+    const dibujo = (clave, fn) => { const g = escena.add.graphics(); fn(g); g.generateTexture(clave, 320, 170); g.destroy(); };
+    // Kraken orbital: medusa gigante con tentáculos
+    dibujo("jefe_tierra", (g) => {
+      for (let i = 0; i < 6; i++) {
+        for (let k = 0; k < 7; k++) {
+          const x = 72 + i * 35 + Math.sin(k * 0.9 + i) * 9, y = 108 + k * 9;
+          g.fillStyle(k % 2 ? 0x2ad0c0 : 0x6fffe0, 1).fillCircle(x, y, 10 - k);
+        }
+      }
+      g.fillStyle(0x1aa0a0, 1).fillEllipse(160, 72, 240, 124);
+      g.fillStyle(0x2ad0c0, 1).fillEllipse(160, 66, 220, 108);
+      g.fillStyle(0x6fffe0, 1).fillEllipse(160, 58, 190, 84);
+      g.fillStyle(0xffffff, 0.45).fillEllipse(122, 36, 56, 20);
+      [[100, 82], [160, 96], [220, 82], [130, 50], [195, 48]].forEach(([x, y]) => g.fillStyle(0xff5ad8, 1).fillCircle(x, y, 8));
+      [[134, 72], [186, 72]].forEach(([x, y]) => { g.fillStyle(0xffffff, 1).fillCircle(x, y, 15); g.fillStyle(0x050816, 1).fillCircle(x + 2, y + 3, 7); });
+    });
+    // Cangrejo de cráter: caparazón de roca con tenazas
+    dibujo("jefe_luna", (g) => {
+      g.lineStyle(7, 0x6c7186, 1);
+      [[100, 120, 70, 160], [125, 130, 105, 166], [220, 120, 250, 160], [195, 130, 215, 166]].forEach(([a, b, c, d]) => g.lineBetween(a, b, c, d));
+      g.lineStyle(6, 0x8a90a6, 1).lineBetween(135, 52, 128, 20).lineBetween(185, 52, 192, 20);
+      [[128, 16], [192, 16]].forEach(([x, y]) => { g.fillStyle(0xffd84a, 1).fillCircle(x, y, 10); g.fillStyle(0x050816, 1).fillCircle(x, y + 1, 4); });
+      [-1, 1].forEach((lado) => {
+        const cx = 160 + lado * 120;
+        g.fillStyle(0x8a90a6, 1).fillRect(lado < 0 ? cx + 10 : cx - 50, 80, 40, 16);
+        g.fillStyle(0x9aa0b4, 1).fillTriangle(cx - lado * 10, 50, cx + lado * 38, 72, cx - lado * 26, 88);
+        g.fillStyle(0x9aa0b4, 1).fillTriangle(cx - lado * 10, 126, cx + lado * 38, 98, cx - lado * 26, 86);
+        g.fillStyle(0xffd84a, 1).fillCircle(cx - lado * 8, 88, 5);
+      });
+      g.fillStyle(0x6c7186, 1).fillEllipse(160, 92, 210, 116);
+      g.fillStyle(0xa8b0c4, 1).fillEllipse(160, 84, 186, 92);
+      [[120, 80, 26], [190, 70, 20], [165, 105, 30], [205, 100, 14], [135, 108, 12]].forEach(([x, y, r]) => {
+        g.fillStyle(0x7a8098, 1).fillEllipse(x, y, r * 1.6, r);
+        g.fillStyle(0xc8ccd8, 1).fillEllipse(x - 2, y - r * 0.35, r * 1.2, r * 0.3);
+      });
+    });
+    // Satélite renegado: paneles enormes y un lente rojo
+    dibujo("jefe_satelites", (g) => {
+      [0, 210].forEach((x) => {
+        g.fillStyle(0x2a5fd8, 1).fillRect(x, 48, 110, 64);
+        g.lineStyle(2, 0x9fd0ff, 1);
+        for (let k = 1; k < 6; k++) g.lineBetween(x + k * 18, 48, x + k * 18, 112);
+        g.lineBetween(x, 80, x + 110, 80);
+        g.lineStyle(3, 0xe6ebf5, 1).strokeRect(x, 48, 110, 64);
+      });
+      g.fillStyle(0x8a94b8, 1).fillRect(108, 74, 104, 12);
+      const hex = (r) => Array.from({ length: 6 }, (_, k) => ({ x: 160 + Math.cos(k * Math.PI / 3) * r, y: 84 + Math.sin(k * Math.PI / 3) * r }));
+      g.fillStyle(0xe8a020, 1).fillPoints(hex(52), true);
+      g.fillStyle(0xffc53d, 1).fillPoints(hex(42), true);
+      g.fillStyle(0xe6ebf5, 1).fillEllipse(160, 26, 74, 24);
+      g.lineStyle(3, 0xffffff, 1).lineBetween(160, 22, 160, 4);
+      g.fillStyle(0xff4a5a, 1).fillCircle(160, 4, 4);
+      g.fillStyle(0x050816, 1).fillCircle(160, 96, 20);
+      g.fillStyle(0xff4a5a, 1).fillCircle(160, 96, 12);
+      g.fillStyle(0xffffff, 0.8).fillCircle(155, 91, 4);
+    });
+    // Fénix solar: alas de fuego abiertas
+    dibujo("jefe_sol", (g) => {
+      [-1, 1].forEach((lado) => {
+        const p = (x) => 160 + lado * x;
+        g.fillStyle(0xff4a1a, 1).fillTriangle(p(10), 70, p(158), 6, p(120), 128);
+        g.fillStyle(0xff8a2a, 1).fillTriangle(p(10), 78, p(138), 28, p(100), 118);
+        g.fillStyle(0xffc04a, 1).fillTriangle(p(10), 84, p(110), 52, p(76), 110);
+        g.fillStyle(0xff4a1a, 1).fillTriangle(p(6), 128, p(40), 130, p(36), 168);
+      });
+      g.fillStyle(0xff6a1a, 1).fillTriangle(146, 128, 174, 128, 160, 168);
+      g.fillStyle(0xffa53a, 1).fillEllipse(160, 88, 60, 104);
+      g.fillStyle(0xffe08a, 1).fillEllipse(160, 98, 34, 60);
+      g.fillStyle(0xff4a1a, 1).fillTriangle(150, 26, 160, 0, 170, 26);
+      g.fillStyle(0xffc04a, 1).fillCircle(160, 40, 22);
+      g.fillStyle(0xff3a1a, 1).fillCircle(151, 37, 4).fillCircle(169, 37, 4);
+      g.fillStyle(0xfff0a0, 1).fillTriangle(153, 48, 167, 48, 160, 62);
+    });
+    // Devorador de estrellas: disco oscuro con púas y un ojo
+    dibujo("jefe_estrellas", (g) => {
+      for (let k = 0; k < 14; k++) {
+        const a = (k / 14) * Math.PI * 2, b = a + 0.16, c2 = a - 0.16;
+        g.fillStyle(k % 2 ? 0x7a3ad8 : 0xd070ff, 1).fillTriangle(
+          160 + Math.cos(b) * 58, 85 + Math.sin(b) * 58 * 0.95, 160 + Math.cos(c2) * 58, 85 + Math.sin(c2) * 58 * 0.95,
+          160 + Math.cos(a) * 84, 85 + Math.sin(a) * 82);
+      }
+      g.fillStyle(0x3a1a6a, 1).fillCircle(160, 85, 62);
+      g.lineStyle(6, 0xd070ff, 1).strokeCircle(160, 85, 54);
+      g.fillStyle(0x14052c, 1).fillCircle(160, 85, 42);
+      g.fillStyle(0xffffff, 1).fillEllipse(160, 85, 60, 36);
+      g.fillStyle(0xff5ad8, 1).fillCircle(160, 85, 15);
+      g.fillStyle(0x050816, 1).fillCircle(160, 85, 7);
+      g.fillStyle(0xffffff, 0.9).fillCircle(155, 80, 3);
+    });
+  }
 
   function texturaPixel(escena, clave, mitades) {
     const filas = mitades.map((f) => f + [...f.slice(0, -1)].reverse().join(""));
@@ -68,7 +408,7 @@
       balas: [], disparos: [], aliens: [], premios: [], jefe: null, jefeDerrotado: false,
       entreOlas: 0, hechaOla: false, ultima: null, sigPicada: 3, formX: 0,
       fase: "ataque", esperaRespuestas: 0,         // ataque: oleada de escoltas | respuestas: llegan los comandantes
-      combo: 0, comboMax: 0, fallos: 0, derribados: 0, tema: "tierra"
+      combo: 0, comboMax: 0, fallos: 0, derribados: 0, esc: ESCENARIOS.estacion
     };
     const teclas = { izq: false, der: false, fuego: false };
     const puntero = { fuego: false };
@@ -129,17 +469,22 @@
       musica = null;
     }
 
-    // ---------- Temas de fondo por misión ----------
-    const TEMAS = {
-      tierra:   { fondo: 0xffffff, luz: 0x8fd8ff },
-      luna:     { fondo: 0xd6dbe8, luz: 0xe8eefc },
-      satelite: { fondo: 0xb8f0e0, luz: 0x6fffe0 },
-      estrella: { fondo: 0xe0b8ff, luz: 0xc08cff },
-      sol:      { fondo: 0xffd9a8, luz: 0xffb347 }
-    };
-    function aplicarTema() {
-      const t = TEMAS[s.tema] || TEMAS.tierra;
-      sc.fondoImg.setTint(t.fondo); sc.luzFondo.setTint(t.luz);
+    // ---------- Escenario de la misión ----------
+    // Pone el fondo, lo que hay abajo (Tierra, Luna, Sol o nada) y lo que flota detrás
+    function aplicarEscenario() {
+      const e = s.esc;
+      sc.fondoImg.setTexture(e.cielo).setTint(e.fondo); sc.luzFondo.setTint(e.luz);
+      [sc.estrellas1, sc.estrellas2].forEach((t) => t.setAlpha(e.estrellas ?? 1));
+      maquetarFondo();
+      sc.tierra.setVisible(!!e.suelo); if (e.suelo) sc.tierra.setTexture(e.suelo);
+      sc.halo.setTint(e.halo).setVisible(!!e.suelo || e.lejanas.nebulosa);
+      sc.planetaLejano.setVisible(!!e.planetaLejano); sc.brilloLejano.setVisible(!!e.planetaLejano);
+      sc.llamas.emitting = !!e.llamas;
+      sc.lejanas.forEach((a) => {
+        a.setTexture(e.lejanas.textura).setTint(e.lejanas.tinte).setAlpha(rand(...e.lejanas.alfa));
+        a.setBlendMode(e.lejanas.nebulosa ? "ADD" : "NORMAL");
+        a.setScale(e.lejanas.nebulosa ? rand(2.5, 4) : e.lejanas.nitidas ? rand(0.6, 1) : rand(0.8, 1.7));
+      });
     }
 
     // ---------- Utilidades de escena ----------
@@ -171,7 +516,9 @@
     }
     const hud = () => {
       const p = s.preguntas[s.indice];
-      return { vidas: s.vidas, puntos: s.puntos, indice: s.indice, total: s.preguntas.length, texto: p ? p.texto : "" };
+      const jefe = !s.enJefe ? "" : s.jefeDerrotado ? "¡Derrotaste a " + s.esc.jefe.nombre + "!"
+        : "¡Jefe final: " + s.esc.jefe.nombre + "! Derrótalo para ganar puntos extra";
+      return { vidas: s.vidas, puntos: s.puntos, indice: s.indice, total: s.preguntas.length, texto: p ? p.texto : jefe, jefe: s.enJefe };
     };
     const quitar = (arr, o) => { const i = arr.indexOf(o); if (i >= 0) arr.splice(i, 1); };
 
@@ -182,10 +529,10 @@
       s.balas.push({ x, y, img: b, halo });
     }
     function quitarBala(b) { b.img.destroy(); b.halo.destroy(); quitar(s.balas, b); }
-    function dispararEnemigo(x, y, vx = limitar((s.nave.x - x) * 0.5, -110, 110)) {
-      const img = sc.add.image(x, y, "balaE").setBlendMode("ADD").setDepth(7);
-      img.rotation = Math.atan2(230, vx) - Math.PI / 2;
-      s.disparos.push({ x, y, vx, vy: 230, img });
+    function dispararEnemigo(x, y, vx = limitar((s.nave.x - x) * 0.5, -110, 110), vy = s.esc.dif.bala) {
+      const img = sc.add.image(x, y, "balaE_" + s.esc.clave).setBlendMode("ADD").setDepth(7);
+      img.rotation = Math.atan2(vy, vx) - Math.PI / 2;
+      s.disparos.push({ x, y, vx, vy, img });
       tono(500, 250, 0.08, "square", 0.012);
     }
     function limpiarDisparos() { s.disparos.forEach((d) => d.img.destroy()); s.disparos = []; }
@@ -222,7 +569,7 @@
     }
 
     function crearAlien(tipo, lugar, ruta, retraso) {
-      const img = sc.add.image(ruta[0].x, ruta[0].y, tipo + "1").setScale(ESCALA[tipo]).setDepth(6).setVisible(false);
+      const img = sc.add.image(ruta[0].x, ruta[0].y, s.esc.enemigos[tipo] + "1").setScale(ESCALA[tipo]).setDepth(6).setVisible(false);
       const a = { tipo, img, lugar, ruta, x: ruta[0].x, y: ruta[0].y, estado: "entra", t: -retraso, dur: 2, r: RADIO[tipo], cuadro: "1" };
       s.aliens.push(a);
       return a;
@@ -247,7 +594,7 @@
 
     function explotar(a, grande = false) {
       if (!a.img.visible) return;
-      const tintes = { abeja: [0xffd84a, 0x4a8cff], mariposa: [0xff4a5a, 0xffffff], comandante: [0x3fe08a, 0xa36bff] }[a.tipo];
+      const tintes = s.esc.tintes[a.tipo];
       chispas(a.x, a.y, grande ? [0xd8f34a, 0xffffff] : tintes, grande ? 40 : 18, grande ? 260 : 200);
       destello(a.x, a.y, grande ? COLOR.ok : tintes[0], grande ? 1.6 : 0.8);
     }
@@ -257,7 +604,7 @@
       explotar(a);
       ruido(0.18, 0.04, 1000); tono(400, 120, 0.12, "square", 0.025);
       sumarCombo();
-      if (Math.random() < 0.06) crearPremio(a.x, a.y, ["doble", "escudo", "reparar"][Math.floor(Math.random() * 3)]);
+      if (Math.random() < s.esc.dif.premio) crearPremio(a.x, a.y, ["doble", "escudo", "reparar"][Math.floor(Math.random() * 3)]);
     }
 
     // Un escolta sale de la formación, hace un rizo y se lanza hacia la nave
@@ -265,8 +612,8 @@
       const dir = a.x < W / 2 ? -1 : 1;
       const objetivo = limitar(s.nave.x + rand(-40, 40), 30, W - 30);
       a.ruta = [{ x: a.x, y: a.y }, { x: a.x + dir * 90, y: a.y - 70 }, { x: objetivo - dir * 60, y: H * 0.5 }, { x: objetivo + dir * 80, y: H + 50 }];
-      a.estado = "pica"; a.t = 0; a.dur = Math.max(1.9, 2.6 - s.indice * 0.1);
-      a.tiros = a.tipo === "mariposa" ? [0.35, 0.5] : [0.42];
+      a.estado = "pica"; a.t = 0; a.dur = Math.max(1.9, 2.6 - s.indice * 0.1) / s.esc.dif.rapidez;
+      a.tiros = a.tipo === "mariposa" ? [...s.esc.dif.tiros] : [0.42];
       tono(1200, 300, 0.45, "triangle", 0.02);
     }
 
@@ -284,7 +631,7 @@
       s.fase = "ataque";
       // Más columnas mientras más ancha es la pantalla; más filas conforme avanza la misión
       const columnas = limitar(Math.floor((W - 60) / SEPARACION / 2) * 2, 6, 12);
-      const filas = s.indice === 0 ? ["mariposa", "abeja"] : ["mariposa", "mariposa", "abeja"];
+      const filas = s.esc.dif.filas(s.indice);
       filas.forEach((tipo, f) => {
         for (let k = 0; k < columnas; k++) {
           const lugar = { x: W / 2 + (k - (columnas - 1) / 2) * SEPARACION, y: 80 + f * 42 };
@@ -321,58 +668,125 @@
       }));
     }
 
-    // ---------- Nave nodriza (jefe antes de la última pregunta) ----------
+    // ---------- Jefe final (al terminar todas las preguntas) ----------
+    // Una nave grande, distinta en cada escenario. Si el niño la derrota gana puntos
+    // extra (los da el servidor con cb.alJefe, una sola vez por misión).
     function crearJefe() {
-      const img = sc.add.image(W / 2, -80, "nodriza").setScale(0.5).setDepth(6);
-      const luz = sc.add.image(W / 2, -80, "luz").setBlendMode("ADD").setTint(0xc08cff).setDisplaySize(260, 160).setAlpha(0.35).setDepth(5);
-      const barra = sc.add.graphics().setDepth(8);
-      const max = 18 + s.preguntas.length * 2;
-      s.jefe = { img, luz, barra, x: W / 2, y: -80, hp: max, max, t: 0, sigTiro: 2, sigEscolta: 4 };
-      mensaje("¡NAVE NODRIZA!", W / 2, 260, "#ff6846", 28);
-      sc.cameras.main.shake(500, 0.006);
-      tono(90, 60, 0.9, "sawtooth", 0.06);
+      const def = s.esc.jefe;
+      const img = sc.add.image(W / 2, -110, def.textura).setScale(def.escala).setDepth(6);
+      const luz = sc.add.image(W / 2, -110, "luz").setBlendMode("ADD").setTint(def.brillo)
+        .setDisplaySize(img.displayWidth * 1.5, img.displayHeight * 2).setAlpha(0.35).setDepth(5);
+      const barra = sc.add.graphics().setDepth(11);
+      const nombre = sc.add.text(W / 2, 12, def.nombre.toUpperCase(), {
+        fontFamily: "IBM Plex Mono, monospace", fontSize: "12px", fontStyle: "600", color: "#ffffff", stroke: "#050816", strokeThickness: 3, resolution: Z
+      }).setOrigin(0.5, 0).setDepth(11);
+      s.jefe = { img, luz, barra, nombre, def, x: W / 2, y: -110, hp: def.vida, max: def.vida, t: 0, sigTiro: 2.2, sigEscolta: 4, turno: 0, furia: false };
+      s.enJefe = true; s.fase = "jefe";
+      limpiarAliens(); limpiarDisparos();
+      mensaje("¡JEFE FINAL!", W / 2, H / 2 - 20, "#ff6846", 32);
+      sc.time.delayedCall(700, () => mensaje(def.nombre, W / 2, H / 2 + 20, "#ffffff", 24));
+      sc.cameras.main.shake(600, 0.008);
+      tono(90, 60, 0.9, "sawtooth", 0.06); setTimeout(() => tono(70, 45, 0.9, "sawtooth", 0.06), 400);
+      cb.alHud(hud());
     }
-    function destruirJefe(j) { j.img.destroy(); j.luz.destroy(); j.barra.destroy(); }
+    function destruirJefe(j) { j.img.destroy(); j.luz.destroy(); j.barra.destroy(); j.nombre.destroy(); }
     function dibujarBarraJefe(j) {
       j.barra.clear();
-      const w = 120, x = j.x - w / 2, y = j.y - 50;
-      j.barra.fillStyle(0x050816, 0.8).fillRect(x - 2, y - 2, w + 4, 10);
-      j.barra.fillStyle(0xff6846, 1).fillRect(x, y, w * (j.hp / j.max), 6);
+      const w = Math.min(320, W * 0.6), x = W / 2 - w / 2, y = 32, k = Math.max(0, j.hp / j.max);
+      j.barra.fillStyle(0x050816, 0.85).fillRect(x - 3, y - 3, w + 6, 14);
+      j.barra.fillStyle(j.furia ? 0xff3a1a : 0xff6846, 1).fillRect(x, y, w * k, 8);
+      j.barra.fillStyle(0xffffff, 0.35).fillRect(x, y, w * k, 3);
+      j.nombre.setPosition(W / 2, 12);
+    }
+    // Ataques: cada ráfaga usa el siguiente de la lista del escenario
+    function ataqueJefe(j) {
+      const tipo = j.def.ataques[j.turno++ % j.def.ataques.length];
+      const x = j.x, y = j.y + j.img.displayHeight * 0.35, v = s.esc.dif.bala;
+      if (tipo === "abanico") {
+        const n = s.esc.dif.abanico + (j.furia ? 2 : 0);
+        for (let k = 0; k < n; k++) dispararEnemigo(x, y, (k - (n - 1) / 2) * (220 / Math.max(1, n - 1)), v);
+      } else if (tipo === "apuntado") {
+        // Disparos seguidos hacia donde está la nave
+        [0, 160, 320].concat(j.furia ? [480] : []).forEach((ms) => sc.time.delayedCall(ms, () => {
+          if (s.jefe !== j) return;
+          const yy = j.y + j.img.displayHeight * 0.35, t = Math.max(0.3, (s.nave.y - yy) / (v * 1.1));
+          dispararEnemigo(j.x, yy, limitar((s.nave.x - j.x) / t, -260, 260), v * 1.1);
+        }));
+      } else if (tipo === "lluvia") {
+        // Disparos que caen desde arriba en lugares al azar
+        for (let k = 0; k < (j.furia ? 9 : 6); k++) {
+          sc.time.delayedCall(k * 110, () => { if (s.jefe === j) dispararEnemigo(rand(30, W - 30), -10, rand(-20, 20), v * 0.75); });
+        }
+      } else if (tipo === "espiral") {
+        // Anillo que gira: hay que buscar el hueco
+        const n = j.furia ? 14 : 10;
+        for (let k = 0; k < n; k++) {
+          const a = j.t * 1.7 + (k * Math.PI * 2) / n;
+          dispararEnemigo(x, j.y, Math.cos(a) * v * 0.65, Math.sin(a) * v * 0.65);
+        }
+      }
+      tono(300, 150, 0.12, "square", 0.02);
     }
     function matarJefe() {
       const j = s.jefe; s.jefe = null; s.jefeDerrotado = true;
-      chispas(j.x, j.y, [0xc08cff, 0xff6846, 0xffffff], 70, 320);
-      destello(j.x, j.y, 0xc08cff, 2.4);
-      sc.cameras.main.shake(450, 0.014); sc.cameras.main.flash(250, 255, 200, 120);
-      mensaje("¡Nave nodriza destruida!", W / 2, 260, "#d8f34a", 24);
-      ruido(0.7, 0.09, 1200); tono(160, 40, 0.6, "sawtooth", 0.07);
-      crearPremio(j.x, j.y, "reparar");
-      destruirJefe(j); limpiarDisparos();
-      s.fase = "respuestas";        // la nodriza cuenta como la oleada de ataque
-      s.entreOlas = 1.4;
+      // Explosión en cadena
+      for (let k = 0; k < 8; k++) {
+        sc.time.delayedCall(k * 120, () => {
+          const ex = j.x + rand(-j.img.displayWidth / 2, j.img.displayWidth / 2), ey = j.y + rand(-j.img.displayHeight / 2, j.img.displayHeight / 2);
+          chispas(ex, ey, [j.def.brillo, 0xffffff, 0xffb347], 30, 260); destello(ex, ey, j.def.brillo, 1.4);
+          ruido(0.25, 0.05, 1200);
+        });
+      }
+      sc.time.delayedCall(1000, () => { chispas(j.x, j.y, [j.def.brillo, 0xffffff], 90, 360); destello(j.x, j.y, 0xffffff, 3); });
+      sc.cameras.main.shake(900, 0.016); sc.cameras.main.flash(300, 255, 230, 160);
+      ruido(0.9, 0.09, 1200); tono(160, 40, 0.8, "sawtooth", 0.07);
+      sc.tweens.add({ targets: [j.img, j.luz], alpha: 0, duration: 1100, onComplete: () => destruirJefe(j) });
+      j.barra.clear(); j.nombre.setVisible(false);
+      limpiarDisparos(); s.aliens.forEach((a) => explotar(a)); limpiarAliens();
+      mensaje(`¡${j.def.nombre} derrotado!`, W / 2, H / 2 - 30, "#d8f34a", 26);
+      s.inmune = 99;          // ya nada lo puede dañar
+      s.finJefe = 3.4;        // tiempo para festejar antes del resultado
+      s.bonoListo = false;
+      // Puntos extra: los decide el servidor (o la bandeja sin conexión)
+      Promise.resolve(cb.alJefe()).then((r) => {
+        const p = Number((r && r.puntos_ganados) || 0);
+        s.bonoJefe = p; s.puntos += p;
+        mensaje(p > 0 ? `+${p} PUNTOS EXTRA` : "¡Jefe vencido otra vez!", W / 2, H / 2 + 20, "#6fd0ff", p > 0 ? 30 : 20);
+        if (p > 0) { tono(520, 1040, 0.3, "triangle", 0.06); setTimeout(() => tono(780, 1560, 0.4, "triangle", 0.05), 150); }
+        cb.alHud(hud());
+      }).catch(() => {}).finally(() => { s.bonoListo = true; });
     }
     function actualizarJefe(dt) {
       const j = s.jefe;
       j.t += dt;
-      j.y += (130 - j.y) * Math.min(1, dt * 1.2);
-      j.x = W / 2 + Math.sin(j.t * 0.7) * Math.max(140, W / 2 - 110);
+      const vel = j.furia ? 1.45 : 1;
+      j.y += (150 - j.y) * Math.min(1, dt * 1.2);
+      const amplitud = Math.max(110, W / 2 - j.img.displayWidth / 2 - 10);
+      j.x = W / 2 + Math.sin(j.t * 0.7 * vel) * amplitud;
+      if (j.def.mov === "ocho") j.y += Math.cos(j.t * 1.4 * vel) * 60 * dt;   // dibuja un ocho
       j.img.setPosition(j.x, j.y);
-      j.luz.setPosition(j.x, j.y).setAlpha(0.3 + Math.sin(j.t * 4) * 0.1);
-      const bala = s.balas.find((b) => Math.abs(b.x - j.x) < 75 && Math.abs(b.y - j.y) < 30);
+      j.luz.setPosition(j.x, j.y).setAlpha((j.furia ? 0.45 : 0.3) + Math.sin(j.t * (j.furia ? 9 : 4)) * 0.1);
+      // Impactos de la nave
+      const ancho = j.img.displayWidth * 0.42, alto = j.img.displayHeight * 0.4;
+      const bala = s.balas.find((b) => Math.abs(b.x - j.x) < ancho && Math.abs(b.y - j.y) < alto);
       if (bala) {
         quitarBala(bala); j.hp -= 1; j.img.setTint(0xff9a7a); sc.time.delayedCall(70, () => j.img.active && j.img.clearTint());
-        chispas(bala.x, bala.y, 0xc08cff, 5, 120); tono(240, 120, 0.05, "square", 0.025);
+        chispas(bala.x, bala.y, j.def.brillo, 5, 120); tono(240, 120, 0.05, "square", 0.025);
         if (j.hp <= 0) { matarJefe(); return; }
+        if (!j.furia && j.hp <= j.max / 2) {
+          j.furia = true;
+          mensaje("¡FURIA!", j.x, j.y + 60, "#ff3a1a", 26);
+          sc.cameras.main.shake(300, 0.01); tono(120, 60, 0.5, "sawtooth", 0.06);
+        }
       }
       if (j.y > 100) {
-        // Ráfaga de tres disparos en abanico
         j.sigTiro -= dt;
-        if (j.sigTiro <= 0) { [-90, 0, 90].forEach((vx) => dispararEnemigo(j.x, j.y + 30, vx)); j.sigTiro = rand(1.3, 1.9); }
-        // Suelta abejas que se lanzan contra la nave
+        if (j.sigTiro <= 0) { ataqueJefe(j); j.sigTiro = rand(1.3, 1.9) * s.esc.dif.cadencia * (j.furia ? 0.7 : 1); }
+        // Suelta escoltas que se lanzan contra la nave
         j.sigEscolta -= dt;
         if (j.sigEscolta <= 0) {
-          [-40, 40].forEach((dx) => iniciarPicada(crearAlien("abeja", null, [{ x: j.x + dx, y: j.y + 20 }], 0)));
-          j.sigEscolta = 5;
+          [-40, 40].forEach((dx) => iniciarPicada(crearAlien(j.def.escolta, null, [{ x: j.x + dx, y: j.y + 20 }], 0)));
+          j.sigEscolta = j.furia ? 3.5 : 5;
         }
       }
       dibujarBarraJefe(j);
@@ -416,12 +830,13 @@
         chispas(s.nave.x, s.nave.y, [0xff6846, 0xffb347, 0xffffff], 60, 300); destello(s.nave.x, s.nave.y, COLOR.mal, 2);
         tono(200, 40, 0.7, "sawtooth", 0.07); ruido(0.8, 0.09, 1400);
         pararMusica();
-        cb.alPerder();
+        cb.alPerder({ jefe: s.enJefe });
       }
     }
     function terminar() {
       s.modo = "fin"; pararMusica();
-      cb.alTerminar({ puntos: s.puntos, ultima: s.ultima, vidas: s.vidas, fallos: s.fallos, racha: s.comboMax, aliens: s.derribados });
+      cb.alTerminar({ puntos: s.puntos, ultima: s.ultima, vidas: s.vidas, fallos: s.fallos, racha: s.comboMax, aliens: s.derribados,
+                      jefe: { nombre: s.esc.jefe.nombre, derrotado: s.jefeDerrotado, bono: s.bonoJefe } });
     }
 
     // ---------- Actualización ----------
@@ -467,7 +882,7 @@
         if (a.estado === "entra" || a.estado === "pica") {
           if (Math.hypot(a.x - antes.x, a.y - antes.y) > 0.2) a.img.rotation = Math.atan2(a.y - antes.y, a.x - antes.x) + Math.PI / 2;
         } else a.img.rotation *= Math.max(0, 1 - dt * 8);
-        if (a.cuadro !== cuadro) { a.cuadro = cuadro; a.img.setTexture(a.tipo + cuadro); }
+        if (a.cuadro !== cuadro) { a.cuadro = cuadro; a.img.setTexture(s.esc.enemigos[a.tipo] + cuadro); }
         a.img.setPosition(a.x, a.y);
         if (a.opcion) {
           a.opcion.c.setPosition(a.x, a.y + BAJO_ETIQUETA + a.opcion.h / 2);
@@ -506,13 +921,13 @@
         if (s.fase === "ataque") {
           const libres = s.aliens.filter((a) => a.estado === "formado");
           const picando = s.aliens.filter((a) => a.estado === "pica").length;
-          const max = 2 + Math.min(2, Math.floor(s.indice / 2)) + (W > 800 ? 1 : 0);
+          const max = s.esc.dif.picadas + Math.min(2, Math.floor(s.indice / 2)) + (W > 800 ? 1 : 0);
           if (libres.length && picando < max) iniciarPicada(libres[Math.floor(Math.random() * libres.length)]);
-          s.sigPicada = Math.max(0.6, rand(1.1, 1.9) - s.indice * 0.15);
+          s.sigPicada = Math.max(0.6, rand(1.1, 1.9) - s.indice * 0.15) * s.esc.dif.cadencia;
         } else if (s.aliens.some((a) => a.opcion && a.estado === "formado")) {
           const tipo = s.indice >= 1 && Math.random() < 0.5 ? "mariposa" : "abeja";
           iniciarPicada(crearAlien(tipo, null, [{ x: rand(60, W - 60), y: -30 }], 0));
-          s.sigPicada = Math.max(1.6, rand(2.6, 3.6) - s.indice * 0.2);
+          s.sigPicada = Math.max(1.6, rand(2.6, 3.6) - s.indice * 0.2) * s.esc.dif.cadencia;
         }
       }
     }
@@ -543,6 +958,10 @@
 
       actualizarAliens(dt);
       if (s.jefe) actualizarJefe(dt);
+      if (s.finJefe > 0) {
+        s.finJefe -= dt;
+        if (s.finJefe <= 0) { if (s.bonoListo) { terminar(); return; } s.finJefe = 0.2; }
+      }
       if (s.esperaRespuestas > 0) {
         s.esperaRespuestas -= dt;
         if (s.esperaRespuestas <= 0 && !s.hechaOla) { limpiarDisparos(); oleadaRespuestas(); }
@@ -559,7 +978,7 @@
           mensaje("¡Te dieron!", s.nave.x, s.nave.y - 34, "#ff6846");
           tono(180, 50, 0.3, "sawtooth", 0.06); ruido(0.3, 0.06, 800);
           perderEscudo();
-        } else if (d.y > H + 20 || d.x < -20 || d.x > W + 20) { d.img.destroy(); quitar(s.disparos, d); }
+        } else if (d.y > H + 20 || d.y < -40 || d.x < -20 || d.x > W + 20) { d.img.destroy(); quitar(s.disparos, d); }
       }
 
       // Premios
@@ -576,10 +995,8 @@
           if (s.hechaOla) {
             s.indice += 1;
             s.hechaOla = false; s.fase = "ataque";
-            if (s.indice >= s.preguntas.length) { terminar(); return; }
+            if (s.indice >= s.preguntas.length) { crearJefe(); return; }
           }
-          // Nave nodriza antes de la última pregunta
-          if (s.indice === s.preguntas.length - 1 && s.preguntas.length > 1 && !s.jefeDerrotado && !s.jefe) { crearJefe(); return; }
           nuevaOla();
         }
       }
@@ -608,17 +1025,24 @@
     // Acomoda el fondo, la Tierra, la cámara y la nave al tamaño actual
     function maquetar(anchoAntes = W) {
       sc.cameras.main.setSize(Math.round(W * Z), Math.round(H * Z)).setZoom(Z).centerOn(W / 2, H / 2);
-      const f = sc.textures.get("fondo").getSourceImage();
-      sc.fondoImg.setPosition(W / 2, H / 2).setScale(Math.max(W / f.width, H / f.height));
+      maquetarFondo();
       sc.luzFondo.setPosition(W * 0.62, H * 0.25);
       [sc.estrellas1, sc.estrellas2].forEach((e) => e.setPosition(W / 2, H / 2).setSize(W, H));
       const alto = W * 360 / 1024;
       // El borde del planeta (a 40% de la imagen) siempre asoma 85 px sobre el fondo
       sc.tierra.setDisplaySize(W, alto).setPosition(W / 2, H - 85 + alto * 0.1);
       sc.halo.setPosition(W / 2, H + 12).setDisplaySize(W * 1.4, 240);
+      sc.planetaLejano.setPosition(W * 0.82, H * 0.17).setDisplaySize(64, 64);
+      sc.brilloLejano.setPosition(W * 0.82, H * 0.17).setDisplaySize(140, 140);
+      sc.llamas.setPosition(W / 2, H - 70);
       s.nave.y = H - 84;
       s.nave.x = s.objetivoX = limitar(s.nave.x * W / anchoAntes, 26, W - 26);
       s.aliens.forEach((a) => { if (a.lugar) a.lugar.x *= W / anchoAntes; });
+    }
+    // El cielo cubre toda la arena sin deformarse
+    function maquetarFondo() {
+      const f = sc.fondoImg.texture.getSourceImage();
+      sc.fondoImg.setPosition(W / 2, H / 2).setScale(Math.max(W / f.width, H / f.height));
     }
     function ajustar() {
       const antes = W;
@@ -652,6 +1076,14 @@
         const e = this.add.graphics();
         e.fillStyle(0xff6846, 1).fillRoundedRect(0, 0, 8, 18, 4); e.fillStyle(0xffe0a0, 1).fillRoundedRect(2, 3, 4, 12, 2);
         e.generateTexture("balaE", 8, 18); e.destroy();
+        // Disparos enemigos con los colores de cada escenario
+        Object.values(ESCENARIOS).forEach((esc) => {
+          const b = this.add.graphics();
+          b.fillStyle(esc.balaE[0], 1).fillRoundedRect(0, 0, 8, 18, 4); b.fillStyle(esc.balaE[1], 1).fillRoundedRect(2, 3, 4, 12, 2);
+          b.generateTexture("balaE_" + esc.clave, 8, 18); b.destroy();
+        });
+        crearCielos(this);
+        crearJefes(this);
         const n = this.add.graphics();
         n.fillStyle(0x6fd0ff, 0.9).fillEllipse(160, 48, 110, 70);
         n.fillStyle(0xffffff, 0.6).fillEllipse(140, 36, 30, 16);
@@ -660,6 +1092,39 @@
         n.fillStyle(0x3a2a6a, 1).fillEllipse(160, 102, 200, 36);
         [-120, -80, -40, 0, 40, 80, 120].forEach((dx, i) => n.fillStyle(i % 2 ? 0xd8f34a : 0xff6846, 1).fillCircle(160 + dx, 82, 7));
         n.generateTexture("nodriza", 320, 140); n.destroy();
+
+        // Suelos de los escenarios, con la misma forma que tierra.png (el borde asoma al 40%)
+        const suelo = (clave, capas, manchas) => {
+          const t = this.add.graphics(), R = 1600, cx = 512, cy = 144 + R;
+          capas.forEach(([col, dr]) => t.fillStyle(col, 1).fillCircle(cx, cy, R - dr));
+          manchas.forEach(([col, n2, rMin, rMax]) => {
+            for (let k = 0; k < n2; k++) {
+              const x = rand(20, 1004), r = rand(rMin, rMax), top = cy - Math.sqrt(R * R - (x - cx) ** 2);
+              t.fillStyle(col, 1).fillEllipse(x, rand(top + r + 6, 350), r * 2.4, r);
+            }
+          });
+          t.generateTexture(clave, 1024, 360); t.destroy();
+        };
+        suelo("suelo_luna", [[0xdfe4f0, 0], [0x9aa0b4, 5]], [[0x7a8098, 26, 8, 30], [0xb4bacb, 14, 4, 12]]);
+        // La Tierra de noche: lado oscuro con luces de ciudades
+        suelo("suelo_noche", [[0x6fb4ff, 0], [0x1a3a7a, 4], [0x0c1e44, 10]], [[0x163060, 18, 20, 50], [0xffd84a, 140, 0.8, 2.2], [0xffb347, 70, 0.8, 1.6], [0xfff0c0, 40, 0.6, 1.4]]);
+        suelo("suelo_sol", [[0xffe08a, 0], [0xffc04a, 6], [0xffa53a, 30], [0xff8a2a, 70], [0xff6a1a, 130]], [[0xe85a10, 10, 6, 18], [0xfff0a0, 8, 4, 10]]);
+        // Satélite de adorno (escenario del cinturón de satélites)
+        const sd = this.add.graphics();
+        sd.fillStyle(0x2a5fd8, 1).fillRect(0, 14, 22, 16).fillRect(42, 14, 22, 16);
+        sd.fillStyle(0x8a94b8, 1).fillRect(22, 20, 20, 4);
+        sd.fillStyle(0xffc53d, 1).fillRoundedRect(24, 8, 16, 28, 3);
+        sd.lineStyle(2, 0xffffff, 1).lineBetween(32, 8, 32, 0);
+        sd.generateTexture("satdecor", 64, 40); sd.destroy();
+        // Tierra vista completa, a lo lejos (escenario de la Luna)
+        const pl = this.add.graphics();
+        pl.fillStyle(0x1f6fd1, 1).fillCircle(64, 64, 62).fillStyle(0x2f8ff0, 1).fillCircle(56, 56, 50);
+        pl.fillStyle(0x3fbf6a, 1);
+        [[40, 40, 18, 12], [74, 30, 14, 9], [80, 70, 20, 16], [44, 84, 12, 10]].forEach(([x, y, w, h]) => pl.fillEllipse(x, y, w * 2, h * 2));
+        pl.fillStyle(0xffffff, 0.75);
+        [[30, 62, 22, 4], [70, 50, 26, 4], [58, 96, 30, 5]].forEach(([x, y, w, h]) => pl.fillEllipse(x, y, w * 2, h * 2));
+        for (let k = 0; k < 8; k++) pl.fillStyle(0x050816, 0.07).fillCircle(70 + k * 3, 70 + k * 3, 62 - k * 4);
+        pl.generateTexture("planeta", 128, 128); pl.destroy();
 
         // Fondo en capas (parallax)
         this.fondoImg = this.add.image(W / 2, H / 2, "fondo").setDisplaySize(W, H).setDepth(0);
@@ -675,6 +1140,14 @@
         // La Tierra, asomando abajo, con halo de atmósfera
         this.halo = this.add.image(W / 2, H + 12, "luz").setBlendMode("ADD").setTint(0x4aa3ff).setAlpha(0.55).setDepth(3);
         this.tierra = this.add.image(W / 2, H - 72, "tierra").setDepth(3);
+        this.brilloLejano = this.add.image(0, 0, "luz").setBlendMode("ADD").setTint(0x4aa3ff).setAlpha(0.5).setDepth(2);
+        this.planetaLejano = this.add.image(0, 0, "planeta").setDepth(2);
+        // Llamaradas que suben desde el Sol (escenario del Sol)
+        this.llamas = this.add.particles(0, 0, "fuego", {
+          x: { min: -700, max: 700 }, speedY: { min: -120, max: -40 }, speedX: { min: -15, max: 15 },
+          lifespan: { min: 500, max: 1100 }, scale: { start: 0.9, end: 0 }, alpha: { start: 0.8, end: 0 },
+          blendMode: "ADD", frequency: 35, tint: [0xffd27a, 0xff8a3a, 0xff5a2a], emitting: false
+        }).setDepth(4);
 
         // Nave + estela de motor + aura de escudo
         this.estela = this.add.particles(0, 0, "fuego", {
@@ -686,7 +1159,7 @@
         this.estela.startFollow(this.nave, 0, 32);
         this.aura = this.add.image(s.nave.x, s.nave.y, "luz").setBlendMode("ADD").setTint(0x6fd0ff).setDisplaySize(110, 110).setDepth(8).setVisible(false);
 
-        aplicarTema();
+        aplicarEscenario();
         maquetar();
         listo = true;
         pendientes.splice(0).forEach((fn) => fn());
@@ -748,12 +1221,12 @@
       limpiarAliens(); limpiarDisparos();
     }
     const api = {
-      cargar(preguntas, indice = 0, tema = "tierra") {
-        s.tema = tema;
-        cuandoListo(() => { reiniciarObjetos(); aplicarTema(); ajustar(); });
+      cargar(preguntas, indice = 0, escenario = "estacion") {
+        s.esc = ESCENARIOS[escenario] || ESCENARIOS.estacion;
+        cuandoListo(() => { reiniciarObjetos(); aplicarEscenario(); ajustar(); });
         Object.assign(s, { preguntas, indice, vidas: 3, puntos: 0, modo: "espera", inmune: 0, doble: 0, jefeDerrotado: false,
                            hechaOla: false, entreOlas: 0, ultima: null, combo: 0, comboMax: 0, fallos: 0, derribados: 0,
-                           fase: "ataque", esperaRespuestas: 0 });
+                           fase: "ataque", esperaRespuestas: 0, enJefe: false, finJefe: 0, bonoJefe: 0, bonoListo: true });
         s.nave.x = s.objetivoX = W / 2;
         cb.alHud(hud());
       },
@@ -766,10 +1239,14 @@
           reiniciarObjetos();
           // Si perdió con las respuestas en pantalla, vuelve directo a ellas
           Object.assign(s, { vidas: 3, modo: "jugando", inmune: 1.5, doble: 0, hechaOla: false, entreOlas: 0.4, esperaRespuestas: 0 });
+          // Si perdió contra el jefe final, el jefe vuelve con toda su vida
+          if (s.enJefe) { s.entreOlas = 0; crearJefe(); }
           cb.alHud(hud());
         });
         iniciarMusica();
       },
+      // Termina la misión sin pelear (o sin volver a pelear) contra el jefe final
+      rendirse() { cuandoListo(() => { reiniciarObjetos(); terminar(); }); },
       pausar() { if (s.modo === "jugando") { s.modo = "pausa"; } },
       reanudar() { if (s.modo === "pausa") s.modo = "jugando"; },
       sonido(activo) { sonidoActivo = activo; if (!activo) pararMusica(); else if (s.modo === "jugando") iniciarMusica(); },
@@ -783,5 +1260,5 @@
     return api;
   }
 
-  window.Nave = { crear };
+  window.Nave = { crear, ESCENARIOS };
 })();

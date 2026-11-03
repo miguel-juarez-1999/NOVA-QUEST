@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/juego.css" />
     <script src="js/api.js" defer></script>
     <script src="js/juego/avisos.js" defer></script>
+    <script src="js/juego/pendientes.js" defer></script>
     <script src="js/vendor/phaser.min.js" defer></script>
     <script src="js/juego/nave.js" defer></script>
     <script src="js/juego/juego.js" defer></script>
@@ -90,7 +91,8 @@
           <section id="pantalla-lectura" class="juego-panel lectura" hidden>
             <p class="section-code" data-lectura-codigo>LECTURA</p>
             <h2 data-lectura-titulo></h2>
-            <p data-lectura-texto></p>
+            <p class="lectura-tiempo" data-lectura-tiempo></p>
+            <div class="articulo" data-lectura-texto></div>
             <button class="btn-juego acid" type="button" data-ir-preguntas>¡Listo! Ir a las preguntas →</button>
             <button class="btn-juego" type="button" data-volver>← Otras misiones</button>
           </section>
@@ -100,6 +102,7 @@
               <div class="hud-fila">
                 <span class="hud-vidas" data-hud-vidas role="img" aria-label="Escudos"></span>
                 <span class="hud-pts"><b data-hud-puntos>0</b> pts</span>
+                <span class="hud-sin-red" data-sin-red hidden title="Tus respuestas se guardan y se envían al volver el internet">📡 Sin conexión</span>
                 <span class="hud-botones">
                   <button type="button" class="hud-btn" data-repasar>📖 Repasar</button>
                   <button type="button" class="hud-btn" data-sonido aria-pressed="true" aria-label="Sonido">🔊</button>
@@ -129,6 +132,7 @@
             <p class="final-puntos"><strong data-final-puntos>0</strong> puntos ganados</p>
             <p class="final-detalle" data-final-detalle></p>
             <div data-final-insignias></div>
+            <p class="final-pendientes" data-final-pendientes hidden></p>
             <h3 class="ranking-titulo">Los mejores de tu grupo</h3>
             <ol class="ranking" data-ranking></ol>
             <button class="btn-juego acid" type="button" data-volver>Más misiones →</button>
@@ -138,7 +142,7 @@
         <dialog class="juego-dialogo" data-dialogo>
           <p class="section-code">REPASAR LECTURA</p>
           <h2 data-dialogo-titulo></h2>
-          <p data-dialogo-texto></p>
+          <div class="articulo" data-dialogo-texto></div>
           <button class="btn-juego acid" type="button" data-dialogo-cerrar>Volver al juego</button>
         </dialog>
 
