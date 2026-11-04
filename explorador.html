@@ -22,7 +22,7 @@
     <header class="eyes-header">
       <a class="eyes-brand" href="index.html"><span>NQ</span><b>NovaQuest</b><em>Órbita</em></a>
       <div class="eyes-state"><span class="api-state" data-api-status><i></i> Sincronizando NASA</span><time data-update-time>—</time></div>
-      <div class="eyes-actions"><button type="button" data-notify>Activar notificaciones</button><button type="button" data-test-notify hidden>Enviar prueba</button><button type="button" data-install-app hidden>Instalar PWA</button></div>
+      <div class="eyes-actions"><button type="button" data-notify>Activar notificaciones</button><button type="button" data-test-notify hidden>Enviar prueba</button><button type="button" data-disable-notify hidden>Desactivar</button><button type="button" data-install-app hidden>Instalar PWA</button></div>
     </header>
 
     <main id="visor" class="space-console">
@@ -54,6 +54,7 @@
         <div class="tray-head"><div><span>OBJETOS NASA</span><b>Próximos acercamientos a la Tierra</b></div><button type="button" data-refresh-data>Actualizar datos</button></div>
         <div class="object-list" data-object-list></div>
         <p class="data-message" data-data-message>Preparando consulta a NASA.</p>
+        <p class="push-message" data-push-message aria-live="polite"></p>
       </section>
 
       <div class="map-controls" aria-label="Controles del mapa"><button type="button" data-zoom-in aria-label="Acercar">+</button><button type="button" data-reset-view aria-label="Restablecer vista">⌂</button><button type="button" data-zoom-out aria-label="Alejar">−</button></div>

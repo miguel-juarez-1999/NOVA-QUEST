@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Entrada inmersiva al visor de asteroides NovaQuest con datos abiertos de NASA." />
+    <title>NovaQuest | Ojos en asteroides</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/kevin/portal-orbita.css" />
+    <script src="js/api.js" defer></script>
+    <script src="js/app.js" defer></script>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#020409" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  </head>
+  <body class="orbit-portal">
+    <div class="portal-stars" aria-hidden="true"></div>
+    <header class="portal-header">
+      <a class="portal-brand" href="index.html" aria-label="Volver a NovaQuest"><span class="brand-mark">NQ</span><span>NovaQuest <b>Órbita</b></span></a>
+      <button type="button" class="install-button" data-install-app hidden>Instalar PWA</button>
+    </header>
+    <main>
+      <section class="portal-hero" aria-labelledby="portal-title">
+        <div class="portal-object" aria-hidden="true"><div class="asteroid asteroid-main"></div><i class="orbit-line orbit-one"></i><i class="orbit-line orbit-two"></i></div>
+        <p class="eyebrow">EXPERIENCIA EDUCATIVA · DATOS ABIERTOS NASA</p>
+        <h1 id="portal-title">OJOS EN<br /><strong>ASTEROIDES</strong></h1>
+        <p class="portal-lead">Viaja por el sistema solar, selecciona un objeto y descubre su velocidad, tamaño y distancia de aproximación a la Tierra.</p>
+        <a class="enter-orbit" href="explorador.html"><span>Entrar al visor</span><b>↓</b></a>
+        <p class="portal-credit">Módulo NASA · Kevin Salas Jimarez · NovaQuest PWA</p>
+      </section>
+    </main>
+    <dialog class="install-help" data-install-help aria-labelledby="install-title"><button type="button" data-install-help-close aria-label="Cerrar">×</button><h2 id="install-title">Instala NovaQuest</h2><p>En iPhone abre esta URL en Safari, toca Compartir y elige <strong>Agregar a pantalla de inicio</strong>.</p></dialog>
+  </body>
+</html>

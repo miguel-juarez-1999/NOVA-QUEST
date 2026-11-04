@@ -1,16 +1,16 @@
 {
   "id": "./index.html",
-  "name": "NovaQuest | Órbita NASA",
+  "name": "NovaQuest | Centro de exploración",
   "short_name": "NovaQuest",
-  "description": "Explorador educativo de asteroides con datos abiertos de NASA.",
+  "description": "Experiencia educativa de exploración espacial con un visor interactivo de asteroides.",
   "lang": "es",
   "dir": "ltr",
-  "start_url": "./explorador.html",
+  "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#020409",
-  "theme_color": "#020409",
+  "background_color": "#f3efe7",
+  "theme_color": "#111a3a",
   "categories": [
     "education",
     "science"
@@ -37,10 +37,10 @@
   ],
   "shortcuts": [
     {
-      "name": "NQ Orbit Explorer",
-      "short_name": "Órbita",
+      "name": "Visor interactivo",
+      "short_name": "Visor",
       "description": "Explorar objetos cercanos a la Tierra con datos abiertos de NASA",
-      "url": "./explorador.html",
+      "url": "./orbita.html",
       "icons": [
         {
           "src": "assets/icons/icon-192.png",

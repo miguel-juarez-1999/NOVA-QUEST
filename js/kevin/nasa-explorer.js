@@ -17,6 +17,8 @@ if (canvas) {
   const refreshButton = document.querySelector("[data-refresh-data]");
   const notifyButton = document.querySelector("[data-notify]");
   const testButton = document.querySelector("[data-test-notify]");
+  const disableNotifyButton = document.querySelector("[data-disable-notify]");
+  const pushMessage = document.querySelector("[data-push-message]");
   const config = window.NQ_KEVIN_CONFIG || {};
   const apiUrl = config.productionApiUrl || "";
   const number = new Intl.NumberFormat("es-MX", { maximumFractionDigits: 0 });
@@ -34,11 +36,20 @@ if (canvas) {
     link: document.querySelector("[data-jpl-link]")
   };
 
+  // Catálogo únicamente visual para el modo sin conexión. No inventa
+  // velocidades ni distancias: esos campos se muestran al recuperar NASA.
   const FALLBACK = [
-    { id: "3542519", name: "(2010 PK9)", speed: 63532, distance: 20704610, diameterMin: 115, diameterMax: 258, date: "Dato NASA de respaldo", hazardous: true, jplUrl: "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=3542519" },
-    { id: "2000433", name: "433 Eros", speed: 24500, distance: 22200000, diameterMin: 16000, diameterMax: 36000, date: "Dato educativo de respaldo", hazardous: false, jplUrl: "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=433" },
-    { id: "2001036", name: "1036 Ganymed", speed: 31000, distance: 54000000, diameterMin: 28000, diameterMax: 62000, date: "Dato educativo de respaldo", hazardous: false, jplUrl: "https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=1036" }
-  ];
+    ["2000433", "433 Eros"], ["2101955", "101955 Bennu"],
+    ["2162173", "162173 Ryugu"], ["2025143", "25143 Itokawa"],
+    ["2099942", "99942 Apophis"], ["2065803", "65803 Didymos"],
+    ["2004179", "4179 Toutatis"], ["2001036", "1036 Ganymed"],
+    ["2015666", "1566 Icarus"], ["2001862", "1862 Apollo"]
+  ].map(([id, name]) => ({
+    id, name, speed: null, distance: null, diameterMin: null, diameterMax: null,
+    date: "Disponible al reconectar", hazardous: false, fallback: true,
+    imageUrl: null,
+    jplUrl: `https://ssd.jpl.nasa.gov/tools/sbdb_lookup.html#/?sstr=${id}`
+  }));
 
   const planets = [
     { name: "MERCURIO", a: .39, color: "#a7a9aa", size: 2.4, speed: 4.15 },
@@ -53,8 +64,9 @@ if (canvas) {
   const belt = Array.from({ length: 1100 }, (_, i) => ({ a: 2.05 + fract(Math.sin(i * 12.93) * 8931.7) * 1.35, angle: fract(Math.sin(i * 42.1 + 7) * 991.3) * Math.PI * 2, z: .35 + fract(Math.sin(i * 4.31) * 414.2) * .5, bright: i % 79 === 0 }));
 
   function fract(value) { return value - Math.floor(value); }
-  function dateKey() {
+  function dateKey(offset = 0) {
     const now = new Date();
+    now.setDate(now.getDate() + offset);
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
   }
   function api(route, params = {}) { const url = new URL(apiUrl); url.searchParams.set("r", route); Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v)); return url.href; }
@@ -77,7 +89,7 @@ if (canvas) {
   function normalize(neo) {
     const approach = neo.close_approach_data?.[0] || {};
     const meters = neo.estimated_diameter?.meters || {};
-    return { id: String(neo.id), name: neo.name || "Objeto sin nombre", speed: Number(approach.relative_velocity?.kilometers_per_hour || 0), distance: Number(approach.miss_distance?.kilometers || 0), diameterMin: Number(meters.estimated_diameter_min || 0), diameterMax: Number(meters.estimated_diameter_max || 0), date: approach.close_approach_date_full || approach.close_approach_date || "Sin fecha", hazardous: Boolean(neo.is_potentially_hazardous_asteroid), jplUrl: neo.nasa_jpl_url || "https://ssd.jpl.nasa.gov/", orbit: null };
+    return { id: String(neo.id), name: neo.name || "Objeto sin nombre", speed: Number(approach.relative_velocity?.kilometers_per_hour || 0), distance: Number(approach.miss_distance?.kilometers || 0), diameterMin: Number(meters.estimated_diameter_min || 0), diameterMax: Number(meters.estimated_diameter_max || 0), date: approach.close_approach_date_full || approach.close_approach_date || "Sin fecha", hazardous: Boolean(neo.is_potentially_hazardous_asteroid), jplUrl: neo.nasa_jpl_url || "https://ssd.jpl.nasa.gov/", orbit: null, fallback: false, imageUrl: null };
   }
 
   function pseudoOrbit(object, index) {
@@ -102,22 +114,60 @@ if (canvas) {
     return official;
   }
 
+  // NeoWs no contiene fotografías. Para no asociar una imagen genérica a
+  // un objeto específico, NASA Images sólo se usa cuando el título o la
+  // descripción contienen el nombre/designación buscada.
+  async function addNasaImages(objects) {
+    let found = 0;
+    await Promise.all(objects.map(async (object) => {
+      const cleanName = object.name.replace(/[()]/g, "").trim();
+      const tokens = cleanName.toUpperCase().split(/\s+/).filter((token) => token.length >= 4 || /[A-Z]+\d|\d+[A-Z]+/.test(token));
+      if (!tokens.length) return;
+      try {
+        const url = new URL("https://images-api.nasa.gov/search");
+        url.searchParams.set("q", `asteroid ${cleanName}`);
+        url.searchParams.set("media_type", "image");
+        url.searchParams.set("page_size", "4");
+        const payload = await json(url.href, { timeout: 5000 });
+        const match = (payload.collection?.items || []).find((item) => {
+          const metadata = item.data?.[0] || {};
+          const haystack = `${metadata.title || ""} ${metadata.description || ""}`.toUpperCase();
+          return tokens.some((token) => haystack.includes(token));
+        });
+        const image = match?.links?.find((link) => link.render === "image")?.href;
+        if (image) { object.imageUrl = image; found += 1; }
+      } catch { /* Una tarjeta procedural sigue disponible sin esta API. */ }
+    }));
+    renderList();
+    select(state.selected, false);
+    return found;
+  }
+
   async function loadData(force = false) {
     refreshButton.disabled = true; message.textContent = "Consultando NASA NeoWs y JPL SBDB…"; setStatus("", "Consultando NASA");
     try {
-      const payload = await json(api("nasa_feed", { fecha: dateKey(), forzar: force ? 1 : 0 }), { cache: force ? "reload" : "default" });
-      const objects = Object.values(payload.near_earth_objects || {}).flat().map(normalize).sort((a, b) => a.distance - b.distance).slice(0, 5);
-      if (!objects.length) throw new Error("NASA no devolvió objetos para hoy");
+      // Se consultan varios días a través del backend/caché para obtener una
+      // selección manejable de diez objetos, como en la referencia de NASA.
+      const results = await Promise.allSettled(Array.from({ length: 7 }, (_, offset) =>
+        json(api("nasa_feed", { fecha: dateKey(offset), forzar: force ? 1 : 0 }), { cache: force ? "reload" : "default" })
+      ));
+      const payloads = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
+      if (!payloads.length) throw new Error("NASA no devolvió datos para los próximos días");
+      const unique = new Map();
+      payloads.flatMap((payload) => Object.values(payload.near_earth_objects || {}).flat()).map(normalize).forEach((object) => {
+        const previous = unique.get(object.id);
+        if (!previous || object.distance < previous.distance) unique.set(object.id, object);
+      });
+      const objects = [...unique.values()].sort((a, b) => a.distance - b.distance).slice(0, 10);
+      FALLBACK.forEach((fallback) => { if (objects.length < 10 && !objects.some((object) => object.id === fallback.id)) objects.push({ ...fallback }); });
       objects.forEach((object, index) => { object.orbit = pseudoOrbit(object, index); });
       state.objects = objects; state.selected = 0; renderList(); select(0, false); setStatus("api-live", "NASA conectada");
-      const source = payload._novaquest?.fuente === "cache_api_nasa" ? "caché segura" : "NASA en tiempo real";
-      message.textContent = `${objects.length} objetos obtenidos desde ${source}. Preparando sus trayectorias orbitales…`;
+      const liveCount = objects.filter((object) => !object.fallback).length;
+      message.textContent = `${liveCount} objetos próximos obtenidos de NASA; completando trayectorias e imágenes verificadas…`;
       updateNode.textContent = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
-      addOrbitalData(objects).then((official) => {
+      Promise.all([addOrbitalData(objects), addNasaImages(objects)]).then(([official, images]) => {
         select(state.selected, false);
-        message.textContent = official
-          ? `${objects.length} objetos NASA; ${official} trayectorias usan elementos orbitales de JPL/SBDB.`
-          : `${objects.length} objetos NASA cargados. Las trayectorias se muestran como aproximación educativa.`;
+        message.textContent = `${objects.length} objetos visibles · ${official} órbitas JPL/SBDB · ${images} imágenes coincidentes de NASA Images.`;
       });
     } catch (error) {
       state.objects = FALLBACK.map((o, i) => ({ ...o, orbit: pseudoOrbit(o, i) })); renderList(); select(0, false); setStatus("api-error", "Modo de respaldo"); message.textContent = `La conexión no respondió (${error.message}). El visor continúa con datos educativos almacenados.`;
@@ -127,8 +177,24 @@ if (canvas) {
   function renderList() {
     list.replaceChildren(); state.objects.forEach((object, index) => {
       const button = document.createElement("button"); button.type = "button"; button.className = "object-card";
-      button.innerHTML = `<small>NQ—NEO ${String(index + 1).padStart(2, "0")}</small><h3></h3><p>${number.format(object.distance)} km</p><span>${object.hazardous ? "Vigilancia prioritaria" : "Observación NASA"}</span>`;
-      button.querySelector("h3").textContent = object.name; button.addEventListener("click", () => select(index, true)); list.append(button);
+      const thumb = document.createElement("span");
+      thumb.className = "card-thumb";
+      if (object.imageUrl) {
+        const image = document.createElement("img");
+        image.src = object.imageUrl;
+        image.alt = `Imagen NASA relacionada con ${object.name}`;
+        image.loading = "lazy";
+        thumb.append(image);
+      } else {
+        thumb.classList.add(`procedural-${index % 4}`);
+        thumb.setAttribute("aria-hidden", "true");
+      }
+      const copy = document.createElement("span");
+      copy.className = "card-copy";
+      copy.innerHTML = `<small>NQ—NEO ${String(index + 1).padStart(2, "0")}</small><h3></h3><p>${Number.isFinite(object.distance) ? `${number.format(object.distance)} km` : "Datos al reconectar"}</p><span>${object.fallback ? "Catálogo sin conexión" : object.hazardous ? "Vigilancia prioritaria" : "Observación NASA"}</span>`;
+      copy.querySelector("h3").textContent = object.name;
+      button.append(thumb, copy);
+      button.addEventListener("click", () => select(index, true)); list.append(button);
     });
   }
 
@@ -136,7 +202,10 @@ if (canvas) {
     const object = state.objects[index]; if (!object) return; state.selected = index;
     detail.sequence.textContent = `NQ—NEO ${String(index + 1).padStart(2, "0")} · ${object.orbit?.source || "NASA"}`;
     detail.name.textContent = object.name; detail.summary.textContent = `${object.name} forma parte del registro de objetos cercanos a la Tierra. La visualización usa sus datos científicos para explicar su recorrido.`;
-    detail.date.textContent = object.date; detail.distance.textContent = `${number.format(object.distance)} km`; detail.speed.textContent = `${number.format(object.speed)} km/h`; detail.diameter.textContent = `${number.format(object.diameterMin)}–${number.format(object.diameterMax)} m`;
+    detail.date.textContent = object.date;
+    detail.distance.textContent = Number.isFinite(object.distance) ? `${number.format(object.distance)} km` : "Disponible con conexión";
+    detail.speed.textContent = Number.isFinite(object.speed) ? `${number.format(object.speed)} km/h` : "Disponible con conexión";
+    detail.diameter.textContent = Number.isFinite(object.diameterMin) && Number.isFinite(object.diameterMax) ? `${number.format(object.diameterMin)}–${number.format(object.diameterMax)} m` : "Disponible con conexión";
     detail.hazard.textContent = object.hazardous ? "NASA lo clasifica como potencialmente peligroso por tamaño y proximidad; esta clasificación no significa que vaya a impactar la Tierra." : "NASA no lo clasifica como potencialmente peligroso en la consulta actual.";
     detail.link.href = object.jplUrl; list.querySelectorAll(".object-card").forEach((card, i) => card.classList.toggle("active", i === index)); if (open) panel.classList.add("open");
   }
@@ -178,43 +247,88 @@ if (canvas) {
   document.querySelector("[data-panel-close]").addEventListener("click", () => panel.classList.remove("open"));
   refreshButton.addEventListener("click", () => loadData(true));
 
+  // NOTIFICACIONES / COMPATIBILIDAD CON MIGUEL:
+  // Se conserva una sola PushSubscription del navegador y se registra el
+  // mismo endpoint en la tabla propia push_nasa. Desactivar Órbita elimina
+  // únicamente su registro; no cancela la suscripción compartida del sitio.
+  const PUSH_FLAG = "nq_avisos_nasa";
+  const pushSupported = "Notification" in window && "PushManager" in window && "serviceWorker" in navigator;
+  const markPush = (active) => { try { active ? localStorage.setItem(PUSH_FLAG, "1") : localStorage.removeItem(PUSH_FLAG); } catch { /* almacenamiento opcional */ } };
+
   function b64ToArray(value) { const padding = "=".repeat((4 - value.length % 4) % 4); const raw = atob((value + padding).replace(/-/g, "+").replace(/_/g, "/")); return Uint8Array.from(raw, (char) => char.charCodeAt(0)); }
-  function arrayToB64(buffer) { let raw = ""; new Uint8Array(buffer).forEach((byte) => { raw += String.fromCharCode(byte); }); return btoa(raw).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""); }
-  function sameVapid(subscription, key) { const current = subscription?.options?.applicationServerKey; return Boolean(current && arrayToB64(current) === key.replace(/=+$/, "")); }
-  async function currentSubscription() { return (await navigator.serviceWorker.ready).pushManager.getSubscription(); }
+  function sameVapid(subscription, keyBytes) { const current = subscription?.options?.applicationServerKey; if (!current) return true; const bytes = new Uint8Array(current); return bytes.length === keyBytes.length && bytes.every((byte, index) => byte === keyBytes[index]); }
+  function registrationReady() { return Promise.race([navigator.serviceWorker.ready, new Promise((_, reject) => setTimeout(() => reject(new Error("El modo PWA no está listo. Recarga la página.")), 8000))]); }
+  async function currentSubscription() { return (await registrationReady()).pushManager.getSubscription(); }
+  function pushError(error) { return /push service error/i.test(error.message) ? "El navegador no pudo conectarse a su servicio Push. Revisa los permisos del navegador." : error.message; }
+
+  function renderPush(active, text = "") {
+    notifyButton.hidden = active || !pushSupported;
+    notifyButton.disabled = false;
+    testButton.hidden = !active;
+    testButton.disabled = false;
+    disableNotifyButton.hidden = !active;
+    pushMessage.textContent = text;
+  }
+
+  async function subscriptionForOrbit(registration) {
+    const [{ clave }, current] = await Promise.all([json(api("push_clave")), registration.pushManager.getSubscription()]);
+    const keyBytes = b64ToArray(clave);
+    if (current && sameVapid(current, keyBytes)) return current;
+    if (current) {
+      await json(api("push_baja"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: current.endpoint }) }).catch(() => {});
+      await current.unsubscribe();
+    }
+    return registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes });
+  }
 
   async function inspectPush() {
-    if (!("PushManager" in window) || !apiUrl) return;
+    if (!pushSupported || !apiUrl || Notification.permission !== "granted") return renderPush(false);
     try {
-      const [{ clave }, subscription] = await Promise.all([json(api("push_clave")), currentSubscription()]);
-      if (!subscription) return;
-      if (sameVapid(subscription, clave)) { notifyButton.textContent = "Notificaciones activas"; notifyButton.disabled = true; testButton.hidden = false; }
-      else { notifyButton.textContent = "Reactivar notificaciones"; notifyButton.disabled = false; testButton.hidden = true; message.textContent = "Se detectó una suscripción de otro módulo. Reactívala para asociarla de forma segura a Órbita."; }
-    } catch { /* La carga científica puede seguir aunque el diagnóstico push falle. */ }
+      const registration = await registrationReady();
+      const [{ clave }, current] = await Promise.all([json(api("push_clave")), registration.pushManager.getSubscription()]);
+      if (!current) return renderPush(false);
+      if (!sameVapid(current, b64ToArray(clave))) return renderPush(false, "La suscripción pertenece a otra clave. Activa nuevamente los avisos de Órbita.");
+      await json(api("push_suscribir"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(current.toJSON()) });
+      markPush(true);
+      renderPush(true, "Avisos de Órbita activos en este dispositivo.");
+    } catch { renderPush(false); }
   }
 
   async function activatePush() {
-    if (!("Notification" in window) || !("PushManager" in window) || !("serviceWorker" in navigator)) throw new Error("Este navegador no admite Web Push.");
+    if (!pushSupported) throw new Error("Este navegador no admite Web Push.");
     const standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
     if (/iphone|ipad|ipod/i.test(navigator.userAgent) && !standalone) throw new Error("En iPhone primero agrega NovaQuest a la pantalla de inicio y ábrela desde su icono.");
     if (await Notification.requestPermission() !== "granted") throw new Error("El permiso no fue concedido.");
-    const registration = await navigator.serviceWorker.ready; const { clave } = await json(api("push_clave")); let subscription = await registration.pushManager.getSubscription();
-    if (subscription && !sameVapid(subscription, clave)) { await json(api("push_baja"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) }).catch(() => {}); await subscription.unsubscribe(); subscription = null; }
-    if (!subscription) subscription = await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToArray(clave) });
+    const registration = await registrationReady();
+    const subscription = await subscriptionForOrbit(registration);
     await json(api("push_suscribir"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(subscription.toJSON()) });
-    notifyButton.textContent = "Notificaciones activas"; notifyButton.disabled = true; testButton.hidden = false; message.textContent = "Suscripción verificada con la clave de Órbita y registrada en push_nasa.";
+    markPush(true);
+    renderPush(true, "Suscripción registrada en push_nasa. Enviaremos una confirmación local.");
+    await registration.showNotification("☄️ Avisos de Órbita activados", { body: "Así aparecerán las alertas científicas de NovaQuest.", icon: "assets/icons/icon-192.png", badge: "assets/icons/icon-192.png", tag: "novaquest-nasa-local", lang: "es", data: { url: "explorador.html" } });
   }
 
   let pushTimer;
   async function testPush() {
-    const subscription = await currentSubscription(); if (!subscription) throw new Error("Primero activa las notificaciones."); testButton.disabled = true; message.textContent = "El servidor aceptará la prueba; esperando confirmación del Service Worker…";
+    const subscription = await currentSubscription();
+    if (!subscription) throw new Error("Primero activa las notificaciones.");
+    testButton.disabled = true;
+    pushMessage.textContent = "Servidor contactado; esperando confirmación del Service Worker…";
     await json(api("push_prueba"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) });
-    clearTimeout(pushTimer); pushTimer = setTimeout(() => { message.textContent = "El servidor aceptó el envío, pero este navegador no confirmó la recepción. Pulsa Reactivar notificaciones y revisa que el sistema permita avisos de NovaQuest."; testButton.disabled = false; }, 12000);
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => { pushMessage.textContent = "El servidor aceptó el envío, pero el dispositivo no confirmó la recepción. Reactiva los avisos y revisa los permisos del sistema."; testButton.disabled = false; }, 12000);
   }
 
-  notifyButton.addEventListener("click", () => activatePush().catch((error) => { message.textContent = `No se pudo activar: ${error.message}`; }));
-  testButton.addEventListener("click", () => testPush().catch((error) => { clearTimeout(pushTimer); testButton.disabled = false; message.textContent = `No se pudo enviar la prueba: ${error.message}`; }));
-  navigator.serviceWorker?.addEventListener("message", (event) => { if (event.data?.type !== "novaquest-push-recibido") return; clearTimeout(pushTimer); testButton.disabled = false; message.textContent = "Prueba confirmada: el Service Worker recibió el Web Push y mostró la notificación."; });
+  async function disablePush() {
+    const subscription = await currentSubscription();
+    if (subscription) await json(api("push_baja"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) });
+    markPush(false);
+    renderPush(false, "Avisos de Órbita desactivados. La suscripción compartida de NovaQuest se conserva.");
+  }
+
+  notifyButton.addEventListener("click", () => { notifyButton.disabled = true; activatePush().catch((error) => renderPush(false, `No se pudieron activar: ${pushError(error)}`)); });
+  testButton.addEventListener("click", () => testPush().catch((error) => { clearTimeout(pushTimer); testButton.disabled = false; pushMessage.textContent = `No se pudo enviar: ${pushError(error)}`; }));
+  disableNotifyButton.addEventListener("click", () => disablePush().catch((error) => { pushMessage.textContent = `No se pudo desactivar: ${pushError(error)}`; }));
+  navigator.serviceWorker?.addEventListener("message", (event) => { if (event.data?.type !== "novaquest-push-recibido") return; clearTimeout(pushTimer); testButton.disabled = false; pushMessage.textContent = "Prueba confirmada: el Service Worker recibió y mostró la notificación."; });
 
   addEventListener("resize", resize); resize(); renderList(); select(0, false); requestAnimationFrame(frame); loadData(); inspectPush();
 }
