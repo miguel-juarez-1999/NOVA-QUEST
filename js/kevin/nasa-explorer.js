@@ -247,10 +247,11 @@ if (canvas) {
   document.querySelector("[data-panel-close]").addEventListener("click", () => panel.classList.remove("open"));
   refreshButton.addEventListener("click", () => loadData(true));
 
-  // NOTIFICACIONES / COMPATIBILIDAD CON MIGUEL:
+  // NOTIFICACIONES EN LÍNEA / COMPATIBILIDAD CON MIGUEL:
   // Se conserva una sola PushSubscription del navegador y se registra el
-  // mismo endpoint en la tabla propia push_nasa. Desactivar Órbita elimina
-  // únicamente su registro; no cancela la suscripción compartida del sitio.
+  // mismo endpoint en la tabla propia push_nasa alojada en Supabase.
+  // Desactivar Órbita elimina únicamente su registro; no cancela la
+  // suscripción compartida del sitio. No se usa PHP ni servidor local.
   const PUSH_FLAG = "nq_avisos_nasa";
   const pushSupported = "Notification" in window && "PushManager" in window && "serviceWorker" in navigator;
   const markPush = (active) => { try { active ? localStorage.setItem(PUSH_FLAG, "1") : localStorage.removeItem(PUSH_FLAG); } catch { /* almacenamiento opcional */ } };
@@ -303,8 +304,7 @@ if (canvas) {
     const subscription = await subscriptionForOrbit(registration);
     await json(api("push_suscribir"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(subscription.toJSON()) });
     markPush(true);
-    renderPush(true, "Suscripción registrada en push_nasa. Enviaremos una confirmación local.");
-    await registration.showNotification("☄️ Avisos de Órbita activados", { body: "Así aparecerán las alertas científicas de NovaQuest.", icon: "assets/icons/icon-192.png", badge: "assets/icons/icon-192.png", tag: "novaquest-nasa-local", lang: "es", data: { url: "explorador.html" } });
+    renderPush(true, "Dispositivo registrado en Supabase. Usa «Enviar prueba» para comprobar el Web Push real.");
   }
 
   let pushTimer;
