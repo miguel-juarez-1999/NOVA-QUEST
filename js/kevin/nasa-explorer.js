@@ -84,7 +84,11 @@ if (canvas) {
       throw error;
     } finally { clearTimeout(timeout); }
   }
-  function setStatus(type, label) { statusNode.classList.remove("api-live", "api-error"); statusNode.classList.add(type); statusNode.lastChild.textContent = ` ${label}`; }
+  function setStatus(type, label) {
+    statusNode.classList.remove("api-live", "api-error");
+    if (type) statusNode.classList.add(type);
+    statusNode.lastChild.textContent = ` ${label}`;
+  }
 
   function normalize(neo) {
     const approach = neo.close_approach_data?.[0] || {};
