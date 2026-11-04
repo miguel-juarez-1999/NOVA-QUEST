@@ -90,6 +90,45 @@ if (canvas) {
     statusNode.lastChild.textContent = ` ${label}`;
   }
 
+  // NeoWs entrega datos científicos, no fotografías. Esta miniatura SVG
+  // crea una representación educativa distinta para cada objeto. Si NASA
+  // Images devuelve una coincidencia verificable, esa imagen la reemplaza.
+  function proceduralAsteroid(object, index) {
+    const palettes = [
+      ["#c8b59b", "#6f5d4c", "#221c19"],
+      ["#a9b7c2", "#526271", "#182029"],
+      ["#c79b78", "#774b38", "#241713"],
+      ["#b8b1a8", "#625d58", "#1d1b1a"]
+    ];
+    const shapes = [
+      "M89 18C116 14 148 30 158 55C170 85 149 119 116 127C83 135 43 123 27 96C11 69 29 36 57 24C68 19 78 19 89 18Z",
+      "M79 15C108 6 143 24 158 48C174 73 158 107 134 123C109 140 70 130 43 112C18 95 16 62 34 38C45 24 62 20 79 15Z",
+      "M91 13C121 17 153 34 163 62C171 87 151 113 126 126C98 139 62 126 35 108C10 91 17 54 37 32C51 17 72 10 91 13Z",
+      "M82 17C111 9 147 25 160 51C174 79 153 112 124 126C94 140 54 125 33 102C12 79 23 45 47 28C57 21 70 20 82 17Z"
+    ];
+    const seed = Number(String(object.id).slice(-5)) || index * 137;
+    const palette = palettes[seed % palettes.length];
+    const shape = shapes[seed % shapes.length];
+    const craterA = 38 + seed % 52;
+    const craterB = 76 + seed % 45;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 140">
+      <defs>
+        <radialGradient id="space"><stop stop-color="#172536"/><stop offset="1" stop-color="#03060a"/></radialGradient>
+        <radialGradient id="rock" cx="32%" cy="24%"><stop stop-color="${palette[0]}"/><stop offset=".48" stop-color="${palette[1]}"/><stop offset="1" stop-color="${palette[2]}"/></radialGradient>
+        <filter id="glow"><feGaussianBlur stdDeviation="5"/></filter>
+      </defs>
+      <rect width="180" height="140" fill="url(#space)"/>
+      <g fill="#9deaff">${Array.from({ length: 12 }, (_, star) => `<circle cx="${(seed * (star + 7) * 17) % 176 + 2}" cy="${(seed + star * 31) % 132 + 4}" r="${star % 4 === 0 ? 1.1 : .45}" opacity="${.25 + (star % 5) * .12}"/>`).join("")}</g>
+      <ellipse cx="92" cy="120" rx="58" ry="10" fill="#69d9ff" opacity=".13" filter="url(#glow)"/>
+      <path d="${shape}" fill="url(#rock)" stroke="#dbe7ec" stroke-opacity=".18"/>
+      <ellipse cx="${craterA}" cy="49" rx="14" ry="9" fill="#17191c" opacity=".48" transform="rotate(-18 ${craterA} 49)"/>
+      <ellipse cx="${craterB}" cy="89" rx="10" ry="7" fill="#121417" opacity=".42" transform="rotate(24 ${craterB} 89)"/>
+      <circle cx="118" cy="48" r="6" fill="#111419" opacity=".35"/>
+      <path d="M48 35C69 19 103 19 126 32" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="3" stroke-linecap="round"/>
+    </svg>`;
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  }
+
   function normalize(neo) {
     const approach = neo.close_approach_data?.[0] || {};
     const meters = neo.estimated_diameter?.meters || {};
@@ -152,8 +191,10 @@ if (canvas) {
     try {
       // Se consultan varios días a través del backend/caché para obtener una
       // selección manejable de diez objetos, como en la referencia de NASA.
-      const results = await Promise.allSettled(Array.from({ length: 7 }, (_, offset) =>
-        json(api("nasa_feed", { fecha: dateKey(offset), forzar: force ? 1 : 0 }), { cache: force ? "reload" : "default" })
+      // Tres días suelen aportar más de diez objetos y evitan saturar la
+      // cuota de NASA o ejecutar siete escrituras simultáneas en Supabase.
+      const results = await Promise.allSettled(Array.from({ length: 3 }, (_, offset) =>
+        json(api("nasa_feed", { fecha: dateKey(offset), forzar: force ? 1 : 0 }), { cache: force ? "reload" : "default", timeout: 14000 })
       ));
       const payloads = results.filter((result) => result.status === "fulfilled").map((result) => result.value);
       if (!payloads.length) throw new Error("NASA no devolvió datos para los próximos días");
@@ -183,16 +224,18 @@ if (canvas) {
       const button = document.createElement("button"); button.type = "button"; button.className = "object-card";
       const thumb = document.createElement("span");
       thumb.className = "card-thumb";
-      if (object.imageUrl) {
-        const image = document.createElement("img");
-        image.src = object.imageUrl;
-        image.alt = `Imagen NASA relacionada con ${object.name}`;
-        image.loading = "lazy";
-        thumb.append(image);
-      } else {
-        thumb.classList.add(`procedural-${index % 4}`);
-        thumb.setAttribute("aria-hidden", "true");
-      }
+      const generatedImage = proceduralAsteroid(object, index);
+      const image = document.createElement("img");
+      image.src = object.imageUrl || generatedImage;
+      image.alt = object.imageUrl
+        ? `Imagen NASA verificada de ${object.name}`
+        : `Representación educativa de ${object.name}`;
+      image.loading = "lazy";
+      image.addEventListener("error", () => {
+        if (image.src !== generatedImage) image.src = generatedImage;
+      }, { once: true });
+      thumb.dataset.kind = object.imageUrl ? "NASA" : "SIMULACIÓN";
+      thumb.append(image);
       const copy = document.createElement("span");
       copy.className = "card-copy";
       copy.innerHTML = `<small>NQ—NEO ${String(index + 1).padStart(2, "0")}</small><h3></h3><p>${Number.isFinite(object.distance) ? `${number.format(object.distance)} km` : "Datos al reconectar"}</p><span>${object.fallback ? "Catálogo sin conexión" : object.hazardous ? "Vigilancia prioritaria" : "Observación NASA"}</span>`;
