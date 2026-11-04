@@ -10,14 +10,9 @@ const canvas = document.querySelector("[data-orbit-canvas]");
 if (canvas) {
   const ctx = canvas.getContext("2d");
   const list = document.querySelector("[data-object-list]");
-  const message = document.querySelector("[data-data-message]");
-  const statusNode = document.querySelector("[data-api-status]");
-  const updateNode = document.querySelector("[data-update-time]");
   const panel = document.querySelector(".object-panel");
-  const refreshButton = document.querySelector("[data-refresh-data]");
   const notifyButton = document.querySelector("[data-notify]");
   const testButton = document.querySelector("[data-test-notify]");
-  const disableNotifyButton = document.querySelector("[data-disable-notify]");
   const pushMessage = document.querySelector("[data-push-message]");
   const config = window.NQ_KEVIN_CONFIG || {};
   const apiUrl = config.productionApiUrl || "";
@@ -59,7 +54,9 @@ if (canvas) {
     { name: "JÚPITER", a: 5.2, color: "#bd9476", size: 7.5, speed: .084 }
   ];
 
-  const state = { objects: FALLBACK, selected: 0, width: 0, height: 0, dpr: 1, zoom: .83, panX: 0, panY: 0, rotation: -.18, dragging: false, pointerX: 0, pointerY: 0, hits: [], lastFrame: 0 };
+  const state = { objects: FALLBACK, selected: 0, width: 0, height: 0, dpr: 1, zoom: .83, panX: 0, panY: 0, rotation: -.18, dragging: false, pinching: false, pointerX: 0, pointerY: 0, hits: [], lastFrame: 0 };
+  const activePointers = new Map();
+  let pinchDistance = 0;
   const stars = Array.from({ length: 650 }, (_, i) => ({ x: fract(Math.sin(i * 91.73) * 43758.5), y: fract(Math.sin(i * 37.21 + 2) * 12345.7), r: i % 23 === 0 ? 1.45 : .55 + (i % 5) * .09, a: .16 + (i % 9) * .055 }));
   const belt = Array.from({ length: 1100 }, (_, i) => ({ a: 2.05 + fract(Math.sin(i * 12.93) * 8931.7) * 1.35, angle: fract(Math.sin(i * 42.1 + 7) * 991.3) * Math.PI * 2, z: .35 + fract(Math.sin(i * 4.31) * 414.2) * .5, bright: i % 79 === 0 }));
 
@@ -84,12 +81,6 @@ if (canvas) {
       throw error;
     } finally { clearTimeout(timeout); }
   }
-  function setStatus(type, label) {
-    statusNode.classList.remove("api-live", "api-error");
-    if (type) statusNode.classList.add(type);
-    statusNode.lastChild.textContent = ` ${label}`;
-  }
-
   // NeoWs entrega datos científicos, no fotografías. Esta miniatura SVG
   // crea una representación educativa distinta para cada objeto. Si NASA
   // Images devuelve una coincidencia verificable, esa imagen la reemplaza.
@@ -187,7 +178,6 @@ if (canvas) {
   }
 
   async function loadData(force = false) {
-    refreshButton.disabled = true; message.textContent = "Consultando NASA NeoWs y JPL SBDB…"; setStatus("", "Consultando NASA");
     try {
       // Se consultan varios días a través del backend/caché para obtener una
       // selección manejable de diez objetos, como en la referencia de NASA.
@@ -206,17 +196,13 @@ if (canvas) {
       const objects = [...unique.values()].sort((a, b) => a.distance - b.distance).slice(0, 10);
       FALLBACK.forEach((fallback) => { if (objects.length < 10 && !objects.some((object) => object.id === fallback.id)) objects.push({ ...fallback }); });
       objects.forEach((object, index) => { object.orbit = pseudoOrbit(object, index); });
-      state.objects = objects; state.selected = 0; renderList(); select(0, false); setStatus("api-live", "NASA conectada");
-      const liveCount = objects.filter((object) => !object.fallback).length;
-      message.textContent = `${liveCount} objetos próximos obtenidos de NASA; completando trayectorias e imágenes verificadas…`;
-      updateNode.textContent = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
-      Promise.all([addOrbitalData(objects), addNasaImages(objects)]).then(([official, images]) => {
+      state.objects = objects; state.selected = 0; renderList(); select(0, false);
+      Promise.all([addOrbitalData(objects), addNasaImages(objects)]).then(() => {
         select(state.selected, false);
-        message.textContent = `${objects.length} objetos visibles · ${official} órbitas JPL/SBDB · ${images} imágenes coincidentes de NASA Images.`;
       });
     } catch (error) {
-      state.objects = FALLBACK.map((o, i) => ({ ...o, orbit: pseudoOrbit(o, i) })); renderList(); select(0, false); setStatus("api-error", "Modo de respaldo"); message.textContent = `La conexión no respondió (${error.message}). El visor continúa con datos educativos almacenados.`;
-    } finally { refreshButton.disabled = false; }
+      state.objects = FALLBACK.map((o, i) => ({ ...o, orbit: pseudoOrbit(o, i) })); renderList(); select(0, false);
+    }
   }
 
   function renderList() {
@@ -283,16 +269,38 @@ if (canvas) {
 
   function frame(time) { drawBackground(); drawSystem(time); requestAnimationFrame(frame); }
   function point(event) { return { x: event.clientX, y: event.clientY }; }
-  canvas.addEventListener("pointerdown", (event) => { state.dragging = true; state.pointerX = event.clientX; state.pointerY = event.clientY; canvas.setPointerCapture(event.pointerId); });
-  canvas.addEventListener("pointermove", (event) => { if (!state.dragging) return; const dx = event.clientX - state.pointerX, dy = event.clientY - state.pointerY; state.panX += dx; state.panY += dy; state.rotation += dx * .0008; state.pointerX = event.clientX; state.pointerY = event.clientY; });
-  canvas.addEventListener("pointerup", (event) => { const p = point(event); const hit = state.hits.find((item) => Math.hypot(item.x - p.x, item.y - p.y) < 24); if (hit) select(hit.index, true); state.dragging = false; canvas.releasePointerCapture(event.pointerId); });
-  canvas.addEventListener("pointercancel", () => { state.dragging = false; });
+  const pointerDistance = () => { const values = [...activePointers.values()]; return values.length < 2 ? 0 : Math.hypot(values[0].x - values[1].x, values[0].y - values[1].y); };
+  canvas.addEventListener("pointerdown", (event) => {
+    activePointers.set(event.pointerId, point(event));
+    canvas.setPointerCapture(event.pointerId);
+    if (activePointers.size > 1) { state.dragging = false; state.pinching = true; pinchDistance = pointerDistance(); return; }
+    state.dragging = true; state.pointerX = event.clientX; state.pointerY = event.clientY;
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!activePointers.has(event.pointerId)) return;
+    activePointers.set(event.pointerId, point(event));
+    if (activePointers.size > 1) {
+      const distance = pointerDistance();
+      if (pinchDistance > 0) state.zoom = Math.min(2.6, Math.max(.28, state.zoom * distance / pinchDistance));
+      pinchDistance = distance; state.pinching = true; return;
+    }
+    if (!state.dragging) return;
+    const dx = event.clientX - state.pointerX, dy = event.clientY - state.pointerY; state.panX += dx; state.panY += dy; state.rotation += dx * .0008; state.pointerX = event.clientX; state.pointerY = event.clientY;
+  });
+  canvas.addEventListener("pointerup", (event) => {
+    const wasPinching = state.pinching;
+    activePointers.delete(event.pointerId);
+    if (!wasPinching) { const p = point(event); const hit = state.hits.find((item) => Math.hypot(item.x - p.x, item.y - p.y) < 24); if (hit) select(hit.index, true); }
+    state.dragging = false; pinchDistance = pointerDistance();
+    if (!activePointers.size) state.pinching = false;
+    canvas.releasePointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointercancel", (event) => { activePointers.delete(event.pointerId); state.dragging = false; if (!activePointers.size) state.pinching = false; });
   canvas.addEventListener("wheel", (event) => { event.preventDefault(); state.zoom = Math.min(2.6, Math.max(.28, state.zoom * (event.deltaY > 0 ? .9 : 1.1))); }, { passive: false });
   document.querySelector("[data-zoom-in]").addEventListener("click", () => { state.zoom = Math.min(2.6, state.zoom * 1.18); });
   document.querySelector("[data-zoom-out]").addEventListener("click", () => { state.zoom = Math.max(.28, state.zoom / 1.18); });
   document.querySelector("[data-reset-view]").addEventListener("click", () => { state.zoom = .83; state.panX = 0; state.panY = 0; state.rotation = -.18; });
   document.querySelector("[data-panel-close]").addEventListener("click", () => panel.classList.remove("open"));
-  refreshButton.addEventListener("click", () => loadData(true));
 
   // NOTIFICACIONES EN LÍNEA / COMPATIBILIDAD CON MIGUEL:
   // Se conserva una sola PushSubscription del navegador y se registra el
@@ -314,7 +322,6 @@ if (canvas) {
     notifyButton.disabled = false;
     testButton.hidden = !active;
     testButton.disabled = false;
-    disableNotifyButton.hidden = !active;
     pushMessage.textContent = text;
   }
 
@@ -365,16 +372,8 @@ if (canvas) {
     pushTimer = setTimeout(() => { pushMessage.textContent = "El servidor aceptó el envío, pero el dispositivo no confirmó la recepción. Reactiva los avisos y revisa los permisos del sistema."; testButton.disabled = false; }, 12000);
   }
 
-  async function disablePush() {
-    const subscription = await currentSubscription();
-    if (subscription) await json(api("push_baja"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ endpoint: subscription.endpoint }) });
-    markPush(false);
-    renderPush(false, "Avisos de Órbita desactivados. La suscripción compartida de NovaQuest se conserva.");
-  }
-
   notifyButton.addEventListener("click", () => { notifyButton.disabled = true; activatePush().catch((error) => renderPush(false, `No se pudieron activar: ${pushError(error)}`)); });
   testButton.addEventListener("click", () => testPush().catch((error) => { clearTimeout(pushTimer); testButton.disabled = false; pushMessage.textContent = `No se pudo enviar: ${pushError(error)}`; }));
-  disableNotifyButton.addEventListener("click", () => disablePush().catch((error) => { pushMessage.textContent = `No se pudo desactivar: ${pushError(error)}`; }));
   navigator.serviceWorker?.addEventListener("message", (event) => { if (event.data?.type !== "novaquest-push-recibido") return; clearTimeout(pushTimer); testButton.disabled = false; pushMessage.textContent = "Prueba confirmada: el Service Worker recibió y mostró la notificación."; });
 
   addEventListener("resize", resize); resize(); renderList(); select(0, false); requestAnimationFrame(frame); loadData(); inspectPush();
