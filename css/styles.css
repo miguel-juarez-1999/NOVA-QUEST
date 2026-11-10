@@ -1141,3 +1141,11 @@ figure {
     transform: none;
   }
 }
+
+/* APORTACIÓN KEVIN: distribuye automáticamente cualquier cantidad de accesos
+   sin alterar las barras de cuatro elementos usadas por el juego y la historia. */
+@media (max-width: 680px) {
+  .mobile-dock {
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  }
+}

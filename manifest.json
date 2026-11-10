@@ -2,7 +2,7 @@
   "id": "./index.html",
   "name": "NovaQuest | Centro de exploración",
   "short_name": "NovaQuest",
-  "description": "NovaQuest: un centro visual para descubrir mundos, misiones y preguntas del universo.",
+  "description": "Experiencia educativa de exploración espacial con un visor interactivo de asteroides.",
   "lang": "es",
   "dir": "ltr",
   "start_url": "./index.html",
@@ -37,10 +37,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Archivo de misiones",
-      "short_name": "Misiones",
-      "description": "Ir directo al catálogo de misiones",
-      "url": "./misiones.html#catalogo",
+      "name": "Visor interactivo",
+      "short_name": "Visor",
+      "description": "Explorar objetos cercanos a la Tierra con datos abiertos de NASA",
+      "url": "./orbita.html",
       "icons": [
         {
           "src": "assets/icons/icon-192.png",

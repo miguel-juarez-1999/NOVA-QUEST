@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="NovaQuest Órbita: sistema solar interactivo con objetos cercanos a la Tierra obtenidos de NASA NeoWs." />
+    <title>Órbita | NovaQuest</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="css/kevin/explorador.css" />
+    <script src="js/api.js" defer></script>
+    <script src="js/app.js" defer></script>
+    <script src="js/kevin/config.js" defer></script>
+    <script src="js/kevin/nasa-explorer.js" defer></script>
+    <link rel="manifest" href="manifest.json" />
+    <meta name="theme-color" content="#020409" />
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+  </head>
+  <body class="eyes-page">
+    <a class="skip-link" href="#visor">Saltar al visor</a>
+    <header class="eyes-header">
+      <a class="eyes-brand" href="index.html"><span>NQ</span><b>NovaQuest</b><em>Órbita</em></a>
+      <div class="eyes-actions"><button type="button" data-notify>Activar notificaciones</button><button type="button" data-test-notify hidden>Enviar prueba</button><button type="button" data-install-app hidden>Instalar PWA</button></div>
+    </header>
+
+    <main id="visor" class="space-console">
+      <canvas data-orbit-canvas aria-label="Mapa interactivo del sistema solar con asteroides cercanos a la Tierra"></canvas>
+      <div class="space-vignette" aria-hidden="true"></div>
+
+      <section class="mission-title">
+        <p>NASA NEOWS · VIGILANCIA EDUCATIVA</p>
+        <h1>Órbita de<br /><strong>asteroides</strong></h1>
+        <span>Arrastra para navegar · rueda o pellizca para acercar · selecciona un objeto</span>
+      </section>
+
+      <aside class="object-panel" aria-live="polite">
+        <button class="panel-close" type="button" data-panel-close aria-label="Cerrar ficha">×</button>
+        <p class="panel-code" data-object-sequence>NQ—NEO 01</p>
+        <h2 data-object-name>Cargando objeto…</h2>
+        <p class="object-summary" data-object-summary>Consultando información científica.</p>
+        <dl>
+          <div><dt>Fecha</dt><dd data-object-date>—</dd></div>
+          <div><dt>Distancia de aproximación</dt><dd data-object-distance>—</dd></div>
+          <div><dt>Velocidad relativa</dt><dd data-object-speed>—</dd></div>
+          <div><dt>Diámetro estimado</dt><dd data-object-diameter>—</dd></div>
+        </dl>
+        <p class="hazard" data-hazard-note>Clasificación científica en preparación.</p>
+        <a data-jpl-link href="https://ssd.jpl.nasa.gov/" target="_blank" rel="noreferrer">Abrir ficha JPL ↗</a>
+      </aside>
+
+      <section class="approach-tray" aria-label="Próximos acercamientos">
+        <div class="tray-head"><div><span>OBJETOS NASA</span><b>Próximos acercamientos a la Tierra</b></div></div>
+        <div class="object-list" data-object-list></div>
+        <p class="push-message" data-push-message aria-live="polite"></p>
+      </section>
+
+      <div class="map-controls" aria-label="Controles del mapa"><button type="button" data-zoom-in aria-label="Acercar">+</button><button type="button" data-reset-view aria-label="Restablecer vista">⌂</button><button type="button" data-zoom-out aria-label="Alejar">−</button></div>
+      <div class="scale-legend"><span class="earth-dot"></span> Tierra <span class="neo-dot"></span> NEO destacado <small>Escena educativa; tamaños y distancias no están a escala.</small></div>
+    </main>
+
+    <dialog class="install-help" data-install-help aria-labelledby="install-title"><button type="button" data-install-help-close aria-label="Cerrar">×</button><h2 id="install-title">Instala NovaQuest</h2><ol><li>Abre la URL en Safari.</li><li>Toca Compartir.</li><li>Elige <strong>Agregar a pantalla de inicio</strong>.</li><li>Abre el icono y activa las notificaciones.</li></ol></dialog>
+  </body>
+</html>

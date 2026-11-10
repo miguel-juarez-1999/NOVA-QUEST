@@ -1,0 +1,4 @@
+project_id = "mypfsscjvhlubdmbwazd"
+
+[functions.kevin-nasa]
+verify_jwt = false

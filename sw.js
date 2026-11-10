@@ -24,7 +24,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v16";
+const CACHE_VERSION = "novaquest-v28-kevin-orbita";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -36,6 +36,10 @@ const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const FONTS_CACHE = `${CACHE_VERSION}-fonts`;
 // Caché para las respuestas de la API (datos del backend)
 const API_CACHE = `${CACHE_VERSION}-api`;
+
+// APORTACIÓN KEVIN: caché independiente para respuestas de NASA NeoWs.
+// Evita mezclar datos científicos temporales con HTML, CSS o datos del juego.
+const NASA_CACHE = `${CACHE_VERSION}-nasa-api`;
 
 
 // ---------------------------------------------------------------------
@@ -50,14 +54,18 @@ const PRECACHE_URLS = [
   // Páginas
   "./",
   "./index.html",
+  "./orbita.html",
   "./misiones.html",
   "./juego.html",
   "./linea-tiempo.html",
+  "./explorador.html",
 
   // Estilos y lógica
   "./css/styles.css",
   "./css/juego.css",
   "./css/tiempo.css",
+  "./css/kevin/explorador.css",
+  "./css/kevin/portal-orbita.css",
   "./js/app.js",
   "./js/api.js",
   "./js/juego/juego.js",
@@ -65,6 +73,8 @@ const PRECACHE_URLS = [
   "./js/juego/pendientes.js",
   "./js/juego/nave.js",
   "./js/tiempo.js",
+  "./js/kevin/config.js",
+  "./js/kevin/nasa-explorer.js",
   "./js/vendor/phaser.min.js",
 
   // Gráficos del videojuego
@@ -135,7 +145,7 @@ self.addEventListener("install", (event) => {
 // Borra los cachés de versiones anteriores para no acumular basura.
 self.addEventListener("activate", (event) => {
   // Cachés vigentes: estos NO se deben borrar
-  const cachesPermitidos = [STATIC_CACHE, FONTS_CACHE, API_CACHE];
+  const cachesPermitidos = [STATIC_CACHE, FONTS_CACHE, API_CACHE, NASA_CACHE];
 
   event.waitUntil(
     caches
@@ -183,7 +193,15 @@ self.addEventListener("fetch", (event) => {
   // deja pasar a la red.
   if (url.pathname.endsWith(".mp4") || request.headers.has("range")) return;
 
-  // --- Caso API: datos del backend (PHP + MySQL) ---
+  // --- Caso API Kevin/NASA: backend PHP propio, incluso si está alojado
+  // en un dominio HTTPS distinto de GitHub Pages. RED PRIMERO permite datos
+  // recientes; la última respuesta válida queda disponible sin conexión. ---
+  if (url.pathname.includes("/api/kevin/index.php") || url.pathname.includes("/functions/v1/kevin-nasa")) {
+    event.respondWith(networkFirstApi(request, NASA_CACHE));
+    return;
+  }
+
+  // --- Caso API: datos del backend compartido (PHP + MySQL) ---
   // RED PRIMERO: los datos deben ser frescos. Si no hay internet,
   // se entrega la última respuesta guardada.
   if (url.origin === self.location.origin && url.pathname.includes("/api/")) {
@@ -206,6 +224,14 @@ self.addEventListener("fetch", (event) => {
   // hay en caché y, en paralelo, actualiza el caché desde la red.
   if (url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com") {
     event.respondWith(staleWhileRevalidate(request, FONTS_CACHE));
+    return;
+  }
+
+  // --- Caso NASA NeoWs / APORTACIÓN KEVIN ---
+  // RED PRIMERO: entrega información reciente y, si la red falla,
+  // recupera la última consulta válida guardada en NASA_CACHE.
+  if (url.hostname === "api.nasa.gov" && url.pathname.startsWith("/neo/rest/v1/")) {
+    event.respondWith(nasaNetworkFirst(request));
     return;
   }
 
@@ -276,8 +302,8 @@ self.addEventListener("push", (event) => {
   } catch {
     datos = { cuerpo: event.data ? event.data.text() : "" };
   }
-  event.waitUntil(
-    self.registration.showNotification(datos.titulo || "🚀 NovaQuest", {
+  event.waitUntil((async () => {
+    await self.registration.showNotification(datos.titulo || "🚀 NovaQuest", {
       body: datos.cuerpo || "¡Tu viaje en el tiempo te espera!",
       icon: "./assets/icons/icon-192.png",
       badge: "./assets/icons/icon-192.png",
@@ -285,10 +311,21 @@ self.addEventListener("push", (event) => {
       // para que sus avisos no reemplacen a los de la línea del tiempo
       tag: datos.tag || "novaquest-tiempo",
       renotify: true,
+      silent: false,
+      requireInteraction: true,
       lang: "es",
       data: { url: datos.url || "linea-tiempo.html" },
-    })
-  );
+    });
+
+    // APORTACIÓN KEVIN: confirma a cualquier ventana abierta que el mensaje
+    // sí llegó al Service Worker. Así la interfaz diferencia entre
+    // "el servidor aceptó el envío" y "el dispositivo recibió el Push".
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    windows.forEach((client) => client.postMessage({
+      type: "novaquest-push-recibido",
+      tag: datos.tag || "novaquest-tiempo",
+    }));
+  })());
 });
 
 // NOTIFICATIONCLICK: al tocar el aviso se abre (o se enfoca) la página
@@ -395,4 +432,49 @@ function staleWhileRevalidate(request, nombreCache) {
       return enCache || desdeRed;
     })
   );
+}
+
+
+// ---------------------------------------------------------------------
+// 8. FUNCIÓN AUXILIAR: nasaNetworkFirst / APORTACIÓN KEVIN
+// ---------------------------------------------------------------------
+
+// 1) Consulta la red para priorizar datos científicos recientes.
+// 2) Guarda únicamente respuestas HTTP 200 completas.
+// 3) Ante error o falta de conexión, recupera la misma consulta del caché.
+async function nasaNetworkFirst(request) {
+  const cache = await caches.open(NASA_CACHE);
+
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.status === 200) {
+      await cache.put(request, response.clone());
+      return response;
+    }
+
+    const cachedResponse = await cache.match(request);
+    return cachedResponse || response;
+  } catch (error) {
+    const cachedResponse = await cache.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+}
+
+// APORTACIÓN KEVIN: estrategia reutilizable para el backend NASA.
+// A diferencia de la consulta directa a NASA, esta respuesta ya pasó por
+// cache_api_nasa y por la normalización MySQL del servidor.
+async function networkFirstApi(request, nombreCache) {
+  const cache = await caches.open(nombreCache);
+  try {
+    const response = await fetch(request);
+    if (response.ok && response.status === 200) {
+      await cache.put(request, response.clone());
+    }
+    return response;
+  } catch (error) {
+    const cachedResponse = await cache.match(request, { ignoreSearch: false });
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
 }
