@@ -26,7 +26,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v31-todo-supabase";
+const CACHE_VERSION = "novaquest-v32-menu-equipo";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -68,6 +68,7 @@ const PRECACHE_URLS = [
   "./css/tiempo.css",
   "./css/kevin/explorador.css",
   "./css/kevin/portal-orbita.css",
+  "./css/menu-equipo.css",
   "./js/app.js",
   "./js/api.js",
   "./js/juego/juego.js",

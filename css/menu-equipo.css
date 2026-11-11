@@ -1,0 +1,100 @@
+/* =====================================================================
+   Menú del equipo para las páginas de pantalla completa de Órbita
+   (orbita.html y explorador.html). Son los mismos cuatro accesos que la
+   barra lateral del resto del sitio, con el estilo de botones de Kevin.
+   ===================================================================== */
+.nq-menu {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.nq-menu a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 13px;
+  color: #c9d6dd;
+  background: #0c131cd9;
+  border: 1px solid rgba(157, 234, 255, 0.22);
+  border-radius: 999px;
+  text-decoration: none;
+  font: 600 9px "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+}
+.nq-menu a span {
+  font-size: 12px;
+  line-height: 1;
+}
+.nq-menu a:hover,
+.nq-menu a:focus-visible {
+  color: #020409;
+  background: #d7ff48;
+}
+.nq-menu a.active {
+  color: #020409;
+  background: #d7ff48;
+  border-color: #d7ff48;
+}
+
+/* Portada de Órbita: el menú va al centro de la barra */
+.portal-header {
+  gap: 16px;
+}
+
+/* Visor: la barra pasa a tres columnas (marca · menú · botones) */
+.eyes-header {
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+}
+.eyes-header .nq-menu {
+  justify-content: center;
+}
+
+/* Tablet y celular: el menú baja a una segunda fila de la barra, solo con
+   íconos y nombres cortos, y el contenido se recorre para no taparse. */
+@media (max-width: 850px) {
+  .eyes-header {
+    grid-template-columns: 1fr auto;
+  }
+  .eyes-header .nq-menu {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+  .nq-menu {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .nq-menu a {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 4px;
+    font-size: 8px;
+  }
+  .mission-title {
+    top: 128px;
+  }
+  .object-panel {
+    top: 120px;
+  }
+}
+@media (max-width: 680px) {
+  .portal-header {
+    flex-wrap: wrap;
+  }
+  .portal-header .nq-menu {
+    order: 3;
+  }
+}
+@media (max-width: 500px) {
+  .nq-menu a {
+    flex-direction: column;
+    gap: 3px;
+    font-size: 7px;
+  }
+  .object-panel {
+    top: 116px;
+  }
+}
