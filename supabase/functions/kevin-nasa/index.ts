@@ -11,6 +11,7 @@ import webpush from "npm:web-push@3.6.7";
 
 const allowedOrigins = new Set([
   "https://kevinjimarez.github.io",
+  "https://miguel-juarez-1999.github.io", // sitio publicado del equipo (rama rommel)
   "http://127.0.0.1:8094",
   "http://localhost:8094",
 ]);
