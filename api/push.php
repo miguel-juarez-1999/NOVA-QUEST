@@ -9,6 +9,7 @@
 // api/push-claves.local.php (no se sube a git).
 // =====================================================================
 declare(strict_types=1);
+require_once __DIR__ . '/db.php';
 
 const PUSH_CONTACTO = 'mailto:novaquest@example.com';
 // Cabecera DER de una clave pública P-256 (SubjectPublicKeyInfo)
@@ -127,7 +128,7 @@ function pushEnviar(array $sub, array $datos): int {
 
 // Un dato curioso al azar de la línea de tiempo, listo para enviarse
 function pushDatoCurioso(PDO $pdo): array {
-    $ev = $pdo->query('SELECT id, titulo, texto FROM eventos_linea_tiempo ORDER BY RAND() LIMIT 1')->fetch();
+    $ev = $pdo->query('SELECT id, titulo, texto FROM eventos_linea_tiempo ORDER BY ' . sqlAzar($pdo) . ' LIMIT 1')->fetch();
     if (!$ev) return ['titulo' => '🚀 NovaQuest', 'cuerpo' => '¡Tu viaje en el tiempo te espera!', 'url' => 'linea-tiempo.html'];
     return ['titulo' => '⏳ ¿Sabías que...? ' . $ev['titulo'], 'cuerpo' => $ev['texto'],
             'url' => 'linea-tiempo.html#momento-' . $ev['id']];

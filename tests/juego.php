@@ -14,9 +14,8 @@ if (PHP_SAPI !== 'cli') {
 }
 
 $base = rtrim($argv[1] ?? 'http://localhost/APP9', '/') . '/api/index.php?r=';
-$c = require __DIR__ . '/../api/config.php';
-$pdo = new PDO("mysql:host={$c['host']};port={$c['port']};dbname={$c['dbname']};charset={$c['charset']}",
-               $c['user'], $c['pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+require __DIR__ . '/../api/db.php';
+$pdo = conectarBD(); // la misma base que usa la API (MySQL o Supabase)
 
 $ok = $mal = 0;
 function revisar(string $que, bool $paso, string $detalle = ''): void {

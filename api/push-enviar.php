@@ -15,10 +15,7 @@ if (PHP_SAPI !== 'cli') {
 }
 require __DIR__ . '/push.php';
 
-$c = require __DIR__ . '/config.php';
-$pdo = new PDO("mysql:host={$c['host']};port={$c['port']};dbname={$c['dbname']};charset={$c['charset']}",
-               $c['user'], $c['pass'], [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                                        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+$pdo = conectarBD(); // MySQL o PostgreSQL según config.php (api/db.php)
 
 $aviso = pushDatoCurioso($pdo);
 echo "Aviso: {$aviso['titulo']}\n";

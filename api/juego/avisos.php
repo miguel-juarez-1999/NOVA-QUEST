@@ -52,8 +52,8 @@ function pushJuegoRanking(PDO $pdo, array $u, int $suma): void {
               FROM usuarios u WHERE u.grupo_id = ? AND u.id <> ?) t
         JOIN push_juego s ON s.usuario_id = t.id
         WHERE t.puntos >= ? AND t.puntos < ?
-          AND (s.ultimo_ranking IS NULL OR s.ultimo_ranking < NOW() - INTERVAL ? SECOND)');
-    $st->execute([$u['grupo_id'], $u['id'], $antes, $ahora, PUSH_JUEGO_ESPERA_RANKING]);
+          AND (s.ultimo_ranking IS NULL OR s.ultimo_ranking < ' . sqlHaceSegundos($pdo, PUSH_JUEGO_ESPERA_RANKING) . ')');
+    $st->execute([$u['grupo_id'], $u['id'], $antes, $ahora]);
     foreach ($st->fetchAll() as $sub) {
         $faltan = $ahora - (int)$sub['puntos'] + 1;
         pushJuegoEnviarA($pdo, $sub, [

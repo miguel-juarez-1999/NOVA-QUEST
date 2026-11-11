@@ -40,7 +40,8 @@ self.NQPendientes = (() => {
         try {
           // Una respuesta del juego, o el jefe final derrotado (puntos extra)
           const [ruta, datos] = item.jefe ? ["jefe", { mision: item.jefe }] : ["responder", { opcion_id: item.opcion_id }];
-          r = await fetch(new URL("api/index.php?r=" + ruta, base), {
+          // NQ.url (js/api.js): PHP en la computadora, Supabase publicada
+          r = await fetch(typeof NQ !== "undefined" ? NQ.url(ruta) : new URL("api/index.php?r=" + ruta, base), {
             method: "POST",
             headers: { "Content-Type": "application/json", "X-Token": item.token },
             body: JSON.stringify(datos)

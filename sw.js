@@ -14,6 +14,8 @@
 // Resultado: NovaQuest carga rápido y puede abrirse sin conexión.
 // =====================================================================
 
+// NQ.url: dirección de la API (PHP en la computadora, Supabase publicada)
+importScripts("./js/api.js");
 // Bandeja de respuestas del juego hechas sin conexión (ver sección 5c)
 importScripts("./js/juego/pendientes.js");
 
@@ -24,7 +26,7 @@ importScripts("./js/juego/pendientes.js");
 // Cambia este número cada vez que modifiques archivos del proyecto
 // para que el navegador descargue y guarde la versión nueva.
 // (Ejemplo: "novaquest-v2", "novaquest-v3"...)
-const CACHE_VERSION = "novaquest-v28-kevin-orbita";
+const CACHE_VERSION = "novaquest-v29-supabase";
 
 // Caché para los archivos propios de la app (HTML, CSS, JS, imágenes).
 // Resultado: "novaquest-v1-static"
@@ -201,10 +203,11 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // --- Caso API: datos del backend compartido (PHP + MySQL) ---
+  // --- Caso API: datos del backend compartido (PHP local o Supabase publicado) ---
   // RED PRIMERO: los datos deben ser frescos. Si no hay internet,
-  // se entrega la última respuesta guardada.
-  if (url.origin === self.location.origin && url.pathname.includes("/api/")) {
+  // se entrega la última respuesta guardada. Solo GET: los POST no se guardan.
+  if (request.method === "GET" && ((url.origin === self.location.origin && url.pathname.includes("/api/"))
+      || url.pathname.endsWith("/functions/v1/novaquest"))) {
     event.respondWith(
       fetch(request)
         .then((respuesta) => {
@@ -392,10 +395,10 @@ async function precachearApi() {
     if (respuesta.ok) await cache.put(url, respuesta.clone());
     return respuesta;
   };
-  const misiones = await (await guardar("./api/index.php?r=misiones")).json();
+  const misiones = await (await guardar(NQ.url("misiones"))).json();
   await Promise.all([
-    guardar("./api/index.php?r=linea_tiempo"),
-    ...misiones.map((m) => guardar(`./api/index.php?r=mision&codigo=${encodeURIComponent(m.codigo)}`))
+    guardar(NQ.url("linea_tiempo")),
+    ...misiones.map((m) => guardar(NQ.url("mision", { codigo: m.codigo })))
   ]);
 }
 

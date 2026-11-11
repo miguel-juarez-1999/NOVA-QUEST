@@ -2,3 +2,6 @@ project_id = "mypfsscjvhlubdmbwazd"
 
 [functions.kevin-nasa]
 verify_jwt = false
+
+[functions.novaquest]
+verify_jwt = false
