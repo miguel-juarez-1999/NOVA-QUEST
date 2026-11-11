@@ -224,6 +224,40 @@ Deno.serve(async (request) => {
       return json(request, 200, { ...payload, _novaquest: { fuente: "jpl_sbdb", guardado_en: "cache_api_nasa" } });
     }
 
+    // Búsqueda de fotografías en NASA Images, guardada en cache_api_nasa para
+    // que el navegador no consulte a NASA directamente (todo sale de la base).
+    if (route === "nasa_imagenes") {
+      if (request.method !== "GET") return json(request, 405, { error: "Usa GET." });
+      const q = (url.searchParams.get("q") || "").trim().slice(0, 80);
+      if (q.length < 3) return json(request, 400, { error: "Búsqueda inválida." });
+      const cacheKey = `nasa-images:${q.toLowerCase()}`;
+      const { data: cached, error: cacheReadError } = await supabase
+        .from("cache_api_nasa")
+        .select("respuesta, consultado_en")
+        .eq("clave", cacheKey)
+        .gt("expira_en", new Date().toISOString())
+        .maybeSingle();
+      if (cacheReadError) throw cacheReadError;
+      if (cached) return json(request, 200, { ...cached.respuesta, _novaquest: { fuente: "cache_api_nasa", consultado_en: cached.consultado_en } });
+
+      const imagesUrl = new URL("https://images-api.nasa.gov/search");
+      imagesUrl.searchParams.set("q", q);
+      imagesUrl.searchParams.set("media_type", "image");
+      imagesUrl.searchParams.set("page_size", "4");
+      const imagesResponse = await fetch(imagesUrl);
+      if (!imagesResponse.ok) throw new Error(`NASA Images respondió HTTP ${imagesResponse.status}.`);
+      const payload = await imagesResponse.json();
+      const now = new Date();
+      const { error: cacheWriteError } = await supabase.from("cache_api_nasa").upsert({
+        clave: cacheKey,
+        respuesta: payload,
+        consultado_en: now.toISOString(),
+        expira_en: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      }, { onConflict: "clave" });
+      if (cacheWriteError) throw cacheWriteError;
+      return json(request, 200, { ...payload, _novaquest: { fuente: "nasa_images", guardado_en: "cache_api_nasa" } });
+    }
+
     if (route === "push_clave") {
       if (request.method !== "GET") return json(request, 405, { error: "Usa GET." });
       return json(request, 200, { clave: requiredSecret("VAPID_PUBLIC_KEY") });

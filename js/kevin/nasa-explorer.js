@@ -158,11 +158,8 @@ if (canvas) {
       const tokens = cleanName.toUpperCase().split(/\s+/).filter((token) => token.length >= 4 || /[A-Z]+\d|\d+[A-Z]+/.test(token));
       if (!tokens.length) return;
       try {
-        const url = new URL("https://images-api.nasa.gov/search");
-        url.searchParams.set("q", `asteroid ${cleanName}`);
-        url.searchParams.set("media_type", "image");
-        url.searchParams.set("page_size", "4");
-        const payload = await json(url.href, { timeout: 5000 });
+        // A través de la Edge Function: la búsqueda queda guardada en Supabase
+        const payload = await json(api("nasa_imagenes", { q: `asteroid ${cleanName}` }), { timeout: 8000 });
         const match = (payload.collection?.items || []).find((item) => {
           const metadata = item.data?.[0] || {};
           const haystack = `${metadata.title || ""} ${metadata.description || ""}`.toUpperCase();
